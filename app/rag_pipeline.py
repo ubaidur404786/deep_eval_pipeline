@@ -30,14 +30,17 @@ from app.retriever import build_store, retrieve
 from config.settings import TOP_K
 
 
-def answer_question(question: str, k: int = TOP_K) -> dict:
-    """Retrieve context, generate an answer, return everything the evaluator needs."""
+def answer_question(question: str, k: int = TOP_K,
+                    provider: str | None = None, model: str | None = None) -> dict:
+    """Retrieve context, generate an answer, return everything the evaluator needs.
+
+    provider/model are optional overrides of .env (used by the Streamlit demo)."""
     # 1. RETRIEVE
     hits = retrieve(question, k=k)
     context = [hit["text"] for hit in hits]
 
     # 2. GENERATE
-    answer = generate(question, context)
+    answer = generate(question, context, provider=provider, model=model)
 
     # 3. RETURN THE CONTRACT
     return {

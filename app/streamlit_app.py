@@ -1,20 +1,23 @@
 """
 app/streamlit_app.py -- interactive demo of the evaluation framework.
 
-Two things a visitor can do:
+Four tabs:
 
-    1. Pick a GOLDEN CASE from the dropdown (the same test_cases.json the
-       pipeline uses), run the application, run the evaluation, and compare
-       the live result with the expected behaviour.
-    2. Type a CUSTOM QUESTION, choose which metrics to run, and evaluate it.
+    1. Golden case      pick one of the 26 test cases, run the app, run the
+                        evaluation, compare with the expected behaviour
+    2. Custom question  ask anything, choose the metrics, evaluate
+    3. Last run         summary tables from results/latest_results.json
+    4. Compare runs     any two saved runs side by side (same judge/prompt/corpus)
 
-A third tab shows the summary of the last pipeline run (results/latest_results.json).
+The sidebar lets a viewer switch the APPLICATION model live. The JUDGE stays
+fixed from .env on purpose: comparisons are only meaningful with one judge.
 
 Run from the PROJECT ROOT:
     streamlit run app/streamlit_app.py
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -33,8 +36,21 @@ from eval_methods import METRICS
 from eval_methods.instruction_following import BEHAVIOR_DESCRIPTIONS
 from eval_methods.judge import judge_name
 from golden_data.loader import load_golden_data
+from pipeline.compare import check_comparable
 
 st.set_page_config(page_title="RAG Eval Demo", page_icon="🧪", layout="wide")
+
+# Models a viewer can pick for the APPLICATION. Only providers with a key in
+# .env are offered. Limits measured 2026-09-12 on free tiers.
+APP_MODEL_OPTIONS = {
+    "gemini/gemini-3.1-flash-lite": ("gemini", "gemini-3.1-flash-lite", "15 req/min · ~500/day · default"),
+    "gemini/gemini-3.5-flash-lite": ("gemini", "gemini-3.5-flash-lite", "15 req/min · shares the judge's quota"),
+    "gemini/gemini-3.6-flash":      ("gemini", "gemini-3.6-flash",      "5 req/min · only 20/day"),
+    "groq/openai/gpt-oss-120b":     ("groq",   "openai/gpt-oss-120b",   "1000 req/day · 8K tokens/min"),
+    "groq/openai/gpt-oss-20b":      ("groq",   "openai/gpt-oss-20b",    "1000 req/day · 8K tokens/min"),
+    "groq/qwen/qwen3.8-27b":        ("groq",   "qwen/qwen3.8-27b",      "1000 req/day · 8K tokens/min"),
+}
+KEY_FOR_PROVIDER = {"gemini": "GOOGLE_API_KEY", "groq": "GROQ_API_KEY"}
 
 
 # ---------------------------------------------------------------------------
@@ -51,46 +67,51 @@ def golden_cases() -> list[dict]:
     return load_golden_data()
 
 
-def latest_results() -> dict | None:
-    path = RESULTS_DIR / "latest_results.json"
-    if not path.exists():
-        return None
+def load_results(path: Path) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def result_files() -> list[Path]:
+    return sorted(RESULTS_DIR.glob("run_*.json"), reverse=True)
 
 
 # ---------------------------------------------------------------------------
 # rendering helpers
 # ---------------------------------------------------------------------------
 def render_answer(result: dict, expected_ids: list[str]) -> None:
-    st.subheader("Answer")
-    st.markdown(result["answer"])
-    if result["answer"].strip() == ABSTENTION_MESSAGE:
-        st.info("The application abstained (exact abstention sentence).")
+    st.markdown("#### Answer")
+    st.info(result["answer"]) if result["answer"].strip() == ABSTENTION_MESSAGE else st.success(result["answer"])
 
     retrieved = {s["source_id"] for s in result["sources"]}
-    with st.expander(f"Retrieved context — {len(result['sources'])} chunks", expanded=False):
-        for i, (src, chunk) in enumerate(zip(result["sources"], result["context"]), 1):
-            mark = " ✅ expected" if src["source_id"] in expected_ids else ""
-            st.markdown(f"**[{i}] {src['title']}**  ·  score {src['score']:.3f}  ·  `{src['source_id']}`{mark}")
-            st.text(chunk.split("\n\n", 1)[-1][:700])
-            st.divider()
     if expected_ids:
         found = sum(1 for s in expected_ids if s in retrieved)
-        (st.success if found == len(expected_ids) else st.warning)(
-            f"Expected source articles retrieved: {found}/{len(expected_ids)}"
-        )
+        msg = f"Expected source articles retrieved: **{found}/{len(expected_ids)}**"
+        if found == len(expected_ids):
+            st.markdown(f"✅ {msg}")
+        else:
+            st.markdown(f"⚠️ {msg} — whatever the judge says next is partly a *retrieval* problem")
+
+    with st.expander(f"Retrieved context — {len(result['sources'])} chunks the model actually saw"):
+        for i, (src, chunk) in enumerate(zip(result["sources"], result["context"]), 1):
+            mark = " ✅ expected" if src["source_id"] in expected_ids else ""
+            st.markdown(f"**[{i}] {src['title']}**  ·  similarity {src['score']:.3f}  ·  `{src['source_id']}`{mark}")
+            st.text(chunk.split("\n\n", 1)[-1][:700])
+            if i < len(result["sources"]):
+                st.divider()
 
 
 def render_scores(rows: list[dict]) -> None:
-    st.subheader("Evaluation")
-    cols = st.columns(len(rows)) if rows else []
+    st.markdown("#### Evaluation")
+    cols = st.columns(max(len(rows), 1))
     for col, r in zip(cols, rows):
         score = "ERR" if r["score"] is None else f"{r['score']:.2f}"
-        col.metric(label=r["metric"], value=score, delta="PASS" if r["passed"] else "FAIL",
+        col.metric(label=r["metric"].replace("_", " "), value=score,
+                   delta="PASS" if r["passed"] else "FAIL",
                    delta_color="normal" if r["passed"] else "inverse")
     for r in rows:
-        with st.expander(f"{'✅' if r['passed'] else '❌'} {r['metric']} — why"):
+        icon = "✅" if r["passed"] else "❌"
+        with st.expander(f"{icon} {r['metric']} — why the judge scored it this way"):
             st.write(r["reason"])
 
 
@@ -99,7 +120,7 @@ def run_metrics(names: list[str], question: str, result: dict,
     rows = []
     progress = st.progress(0.0, text="Judging…")
     for i, name in enumerate(names, 1):
-        progress.progress(i / len(names), text=f"Judging: {name}")
+        progress.progress((i - 1) / len(names), text=f"Judging: {name}  ({i}/{len(names)})")
         try:
             rows.append(METRICS[name](
                 question=question, answer=result["answer"], context=result["context"],
@@ -111,59 +132,120 @@ def run_metrics(names: list[str], question: str, result: dict,
     return rows
 
 
+def summary_tables(res: dict) -> None:
+    run = res["run"]
+    st.markdown(
+        f"**App:** `{run['app_model']}` · **Judge:** `{run['judge_model']}` · "
+        f"**Prompt hash:** `{run['prompt_hash']}` · **Cases:** {len(res['cases'])}/{run['n_cases']} · "
+        f"**Time:** {run['elapsed_s']:.0f}s"
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Per metric**")
+        st.dataframe([{"metric": k, **v} for k, v in res["summary"]["per_metric"].items()],
+                     hide_index=True, width="stretch")
+    with c2:
+        st.markdown("**Per category** (a case passes only if all its metrics pass)")
+        st.dataframe([{"category": k, **v} for k, v in res["summary"]["per_category"].items()],
+                     hide_index=True, width="stretch")
+    st.markdown("**Per case**")
+    rows = []
+    for c in res["cases"]:
+        row = {"id": c["id"], "category": c["category"], "sources": c["expected_sources_found"] or "-"}
+        for m in c["metrics"]:
+            row[m["metric"]] = "ERR" if m["score"] is None else m["score"]
+        rows.append(row)
+    st.dataframe(rows, hide_index=True, width="stretch")
+
+
+# ---------------------------------------------------------------------------
+# sidebar: application model (live), judge (fixed)
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.header("Models")
+    available = {k: v for k, v in APP_MODEL_OPTIONS.items() if os.getenv(KEY_FOR_PROVIDER[v[0]])}
+    default_key = f"{APP_PROVIDER}/{APP_MODEL}"
+    keys = list(available)
+    choice = st.selectbox(
+        "Application model",
+        keys,
+        index=keys.index(default_key) if default_key in keys else 0,
+        format_func=lambda k: f"{k}  —  {available[k][2]}",
+    )
+    app_provider, app_model, _ = available[choice]
+    st.caption("Switch freely — the same question, the same judge, a different model.")
+
+    st.markdown(f"**Judge:** `{judge_name()}`")
+    st.caption("Fixed from .env. Comparisons only mean something with one judge.")
+
+    st.divider()
+    st.caption(
+        "Costs: *Run application* = 1 API call. *Run evaluation* = 5–12 judge calls. "
+        "Free tiers cap the judge at ~500 calls/day."
+    )
+    if st.button("Clear results", width="stretch"):
+        for k in list(st.session_state):
+            del st.session_state[k]
+        st.rerun()
+
+
 # ---------------------------------------------------------------------------
 # page
 # ---------------------------------------------------------------------------
-st.title("🧪 RAG Evaluation Framework — demo")
-st.caption(
-    "A reusable LLM/RAG evaluation framework, demonstrated on an AI & Technology News Assistant. "
-    f"App model: `{APP_PROVIDER}/{APP_MODEL}` · Judge: `{judge_name()}`"
-)
+st.title("🧪 RAG Evaluation Framework")
+st.caption("A reusable LLM/RAG evaluation framework, demonstrated on an AI & Technology News Assistant.")
 ready_store()
 
-tab_golden, tab_custom, tab_summary = st.tabs(["Golden case", "Custom question", "Last pipeline run"])
+tab_golden, tab_custom, tab_last, tab_compare = st.tabs(
+    ["Golden case", "Custom question", "Last pipeline run", "Compare runs"]
+)
 
 # ---- TAB 1: golden case -----------------------------------------------------
 with tab_golden:
     cases = golden_cases()
-    labels = [f"{c['id']} · {c['category']} · {c['question'][:70]}" for c in cases]
-    choice = st.selectbox("Select a test case", range(len(cases)), format_func=lambda i: labels[i])
-    case = cases[choice]
+    labels = [f"{c['id']} · {c['category']} · {c['question'][:75]}" for c in cases]
+    idx = st.selectbox("Select a test case", range(len(cases)), format_func=lambda i: labels[i])
+    case = cases[idx]
 
     left, right = st.columns([3, 2])
     with left:
         st.markdown(f"**Question**  \n{case['question']}")
+        if case["expected_answer"]:
+            with st.expander("Expected answer (golden)"):
+                st.write(case["expected_answer"])
     with right:
         st.markdown(f"**Expected behaviour:** `{case['expected_behavior']}`")
         st.caption(BEHAVIOR_DESCRIPTIONS[case["expected_behavior"]])
-        st.markdown(f"**Metrics:** {', '.join(case['metrics'])}")
+        st.markdown(f"**Metrics for this case:** {', '.join(case['metrics'])}")
         if case["notes"]:
-            st.caption(f"Notes: {case['notes']}")
-    if case["expected_answer"]:
-        with st.expander("Expected answer (golden)"):
-            st.write(case["expected_answer"])
+            st.caption(f"📝 {case['notes']}")
 
-    if st.button("▶ Run application", key="run_golden"):
-        with st.spinner("Retrieving and generating…"):
-            st.session_state["golden_result"] = (case["id"], answer_question(case["question"]))
+    b1, b2 = st.columns([1, 1])
+    run_key = (case["id"], choice)
+    if b1.button("▶ Run application", key="run_golden", width="stretch"):
+        with st.spinner(f"Retrieving and generating with {choice}…"):
+            st.session_state["golden_result"] = (run_key, answer_question(
+                case["question"], provider=app_provider, model=app_model))
             st.session_state.pop("golden_scores", None)
 
     stored = st.session_state.get("golden_result")
-    if stored and stored[0] == case["id"]:
+    if stored and stored[0] == run_key:
         result = stored[1]
         render_answer(result, case["source_ids"])
-
-        if st.button("⚖ Run evaluation", key="eval_golden"):
+        if b2.button("⚖ Run evaluation", key="eval_golden", width="stretch"):
             st.session_state["golden_scores"] = run_metrics(
                 case["metrics"], case["question"], result,
                 case["expected_answer"], case["expected_behavior"],
             )
         if "golden_scores" in st.session_state:
             render_scores(st.session_state["golden_scores"])
+    elif stored:
+        st.caption("Model or case changed — run the application again.")
 
 # ---- TAB 2: custom question -------------------------------------------------
 with tab_custom:
-    question = st.text_input("Your question", placeholder="What did Anthropic reveal about AI agents and CAPTCHAs?")
+    question = st.text_input("Your question",
+                             placeholder="What did Anthropic reveal about AI agents and CAPTCHAs?")
     c1, c2 = st.columns(2)
     with c1:
         behavior = st.selectbox("Expected behaviour", list(BEHAVIOR_DESCRIPTIONS), index=0)
@@ -175,16 +257,19 @@ with tab_custom:
         st.warning("correctness needs an expected answer — it will be skipped.")
         metric_names = [m for m in metric_names if m != "correctness"]
 
-    if st.button("▶ Run application", key="run_custom", disabled=not question.strip()):
-        with st.spinner("Retrieving and generating…"):
-            st.session_state["custom_result"] = (question, answer_question(question))
+    b1, b2 = st.columns([1, 1])
+    run_key = (question, choice)
+    if b1.button("▶ Run application", key="run_custom", width="stretch", disabled=not question.strip()):
+        with st.spinner(f"Retrieving and generating with {choice}…"):
+            st.session_state["custom_result"] = (run_key, answer_question(
+                question, provider=app_provider, model=app_model))
             st.session_state.pop("custom_scores", None)
 
     stored = st.session_state.get("custom_result")
-    if stored and stored[0] == question:
+    if stored and stored[0] == run_key:
         result = stored[1]
         render_answer(result, [])
-        if st.button("⚖ Run evaluation", key="eval_custom", disabled=not metric_names):
+        if b2.button("⚖ Run evaluation", key="eval_custom", width="stretch", disabled=not metric_names):
             st.session_state["custom_scores"] = run_metrics(
                 metric_names, question, result, expected.strip() or None, behavior,
             )
@@ -192,32 +277,56 @@ with tab_custom:
             render_scores(st.session_state["custom_scores"])
 
 # ---- TAB 3: last pipeline run ------------------------------------------------
-with tab_summary:
-    res = latest_results()
-    if not res:
+with tab_last:
+    latest = RESULTS_DIR / "latest_results.json"
+    if not latest.exists():
         st.info("No results yet. Run `python -m pipeline.run_evaluation` first.")
     else:
-        run = res["run"]
-        st.markdown(
-            f"**App:** `{run['app_model']}` · **Judge:** `{run['judge_model']}` · "
-            f"**Prompt hash:** `{run['prompt_hash']}` · **Cases:** {len(res['cases'])}/{run['n_cases']} · "
-            f"**Time:** {run['elapsed_s']:.0f}s"
-        )
-        st.markdown("**Per metric**")
-        st.dataframe(
-            [{"metric": k, **v} for k, v in res["summary"]["per_metric"].items()],
-            hide_index=True, width="stretch",
-        )
-        st.markdown("**Per category** (a case passes only if all its metrics pass)")
-        st.dataframe(
-            [{"category": k, **v} for k, v in res["summary"]["per_category"].items()],
-            hide_index=True, width="stretch",
-        )
-        st.markdown("**Per case**")
-        rows = []
-        for c in res["cases"]:
-            row = {"id": c["id"], "category": c["category"], "sources": c["expected_sources_found"] or "-"}
-            for m in c["metrics"]:
-                row[m["metric"]] = "ERR" if m["score"] is None else m["score"]
-            rows.append(row)
-        st.dataframe(rows, hide_index=True, width="stretch")
+        summary_tables(load_results(latest))
+
+# ---- TAB 4: compare two runs ---------------------------------------------------
+with tab_compare:
+    files = result_files()
+    if len(files) < 2:
+        st.info("Need at least two saved runs in results/ to compare.")
+    else:
+        names = [f.name for f in files]
+        c1, c2 = st.columns(2)
+        fa = c1.selectbox("Run A", names, index=min(1, len(names) - 1))
+        fb = c2.selectbox("Run B", names, index=0)
+        a, b = load_results(RESULTS_DIR / fa), load_results(RESULTS_DIR / fb)
+        try:
+            check_comparable(a, b)
+        except SystemExit as exc:
+            st.error(str(exc))
+        else:
+            la, lb = a["run"]["app_model"], b["run"]["app_model"]
+            st.markdown(f"**A:** `{la}` ({len(a['cases'])} cases) · **B:** `{lb}` ({len(b['cases'])} cases) · "
+                        f"judge `{a['run']['judge_model']}`")
+            st.markdown("**Per metric**")
+            rows = []
+            for name in sorted(set(a["summary"]["per_metric"]) | set(b["summary"]["per_metric"])):
+                sa = a["summary"]["per_metric"].get(name, {})
+                sb = b["summary"]["per_metric"].get(name, {})
+                rows.append({
+                    "metric": name,
+                    f"A pass": sa.get("pass_rate"), f"A avg": sa.get("avg_score"), "A err": sa.get("errors"),
+                    f"B pass": sb.get("pass_rate"), f"B avg": sb.get("avg_score"), "B err": sb.get("errors"),
+                })
+            st.dataframe(rows, hide_index=True, width="stretch")
+
+            st.markdown("**Per case** — only cases where the two runs differ")
+            ca = {c["id"]: c for c in a["cases"]}
+            cb = {c["id"]: c for c in b["cases"]}
+            diff = []
+            for cid in sorted(set(ca) | set(cb)):
+                fa_ = [f"{m['metric']}={m['score']}" for m in ca[cid]["metrics"] if not m["passed"]] if cid in ca else ["(not run)"]
+                fb_ = [f"{m['metric']}={m['score']}" for m in cb[cid]["metrics"] if not m["passed"]] if cid in cb else ["(not run)"]
+                if fa_ != fb_:
+                    diff.append({"case": cid, "category": (ca.get(cid) or cb.get(cid))["category"],
+                                 "A": "ok" if not fa_ else ", ".join(fa_),
+                                 "B": "ok" if not fb_ else ", ".join(fb_)})
+            if diff:
+                st.dataframe(diff, hide_index=True, width="stretch")
+            else:
+                st.success("The two runs agree on every case.")

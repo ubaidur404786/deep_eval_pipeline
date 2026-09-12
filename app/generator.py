@@ -34,9 +34,14 @@ def build_prompt(question: str, chunks: list[str]) -> str:
     return template.replace("{context}", format_context(chunks)).replace("{question}", question)
 
 
-def generate(question: str, chunks: list[str]) -> str:
-    """The generator: prompt in, grounded answer out."""
+def generate(question: str, chunks: list[str], provider: str | None = None, model: str | None = None) -> str:
+    """The generator: prompt in, grounded answer out.
+
+    provider/model default to .env (APP_PROVIDER / APP_MODEL); the Streamlit
+    demo passes them explicitly so a viewer can switch models live."""
     prompt = build_prompt(question, chunks)
+    if provider and model:
+        return complete(prompt, provider=provider, model=model)
     return complete(prompt)
 
 
