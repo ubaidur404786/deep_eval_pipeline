@@ -72,8 +72,16 @@ def load_results(path: Path) -> dict:
         return json.load(f)
 
 
-def result_files() -> list[Path]:
-    return sorted(RESULTS_DIR.glob("run_*.json"), reverse=True)
+def result_files() -> list[tuple[str, Path]]:
+    """Complete runs only (all cases scored), newest first, with a readable label."""
+    out = []
+    for path in sorted(RESULTS_DIR.glob("run_*.json"), reverse=True):
+        r = load_results(path)
+        if len(r["cases"]) < r["run"]["n_cases"]:
+            continue  # partial run -- not comparable
+        stamp = r["run"]["timestamp"][:16].replace("T", " ")
+        out.append((f"{r['run']['app_model']}  ·  {stamp}  ·  judge {r['run']['judge_model'].split('/')[-1]}", path))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +202,20 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 st.title("🧪 RAG Evaluation Framework")
 st.caption("A reusable LLM/RAG evaluation framework, demonstrated on an AI & Technology News Assistant.")
+with st.expander("About this demo — what each tab does"):
+    st.markdown(
+        """
+- **Golden case** — pick one of 26 hand-written test cases. *Run application* asks the news assistant
+  (one API call) and shows the answer plus the four text chunks it was given. *Run evaluation* asks a
+  second model, the **judge**, to score the answer on the metrics that apply to that case.
+- **Custom question** — the same, for any question you type.
+- **Last pipeline run** — the summary of the most recent full 26-case run (`python -m pipeline.run_evaluation`).
+- **Compare runs** — two complete runs side by side. Only runs with the **same judge, prompt and corpus**
+  can be compared; the tab refuses otherwise.
+
+Every score comes with the judge's written **reason**. Read it — the judge is sometimes wrong, and the reason is how you find out.
+        """
+    )
 ready_store()
 
 tab_golden, tab_custom, tab_last, tab_compare = st.tabs(
@@ -288,34 +310,41 @@ with tab_last:
 with tab_compare:
     files = result_files()
     if len(files) < 2:
-        st.info("Need at least two saved runs in results/ to compare.")
+        st.info("Need at least two **complete** runs in results/ to compare. "
+                "Partial runs (stopped by a quota) are not listed.")
     else:
-        names = [f.name for f in files]
+        labels = [f[0] for f in files]
         c1, c2 = st.columns(2)
-        fa = c1.selectbox("Run A", names, index=min(1, len(names) - 1))
-        fb = c2.selectbox("Run B", names, index=0)
-        a, b = load_results(RESULTS_DIR / fa), load_results(RESULTS_DIR / fb)
+        fa = c1.selectbox("Run A", labels, index=min(1, len(labels) - 1))
+        fb = c2.selectbox("Run B", labels, index=0)
+        a = load_results(dict(files)[fa])
+        b = load_results(dict(files)[fb])
         try:
             check_comparable(a, b)
         except SystemExit as exc:
             st.error(str(exc))
         else:
             la, lb = a["run"]["app_model"], b["run"]["app_model"]
-            st.markdown(f"**A:** `{la}` ({len(a['cases'])} cases) · **B:** `{lb}` ({len(b['cases'])} cases) · "
-                        f"judge `{a['run']['judge_model']}`")
-            st.markdown("**Per metric**")
+            st.markdown(f"### `{la}`  vs  `{lb}`")
+            st.caption(f"Same judge (`{a['run']['judge_model']}`), same prompt (`{a['run']['prompt_hash']}`), "
+                       f"same corpus, same 26 cases. Only the application model differs.")
+
+            st.markdown("**Per metric** — pass rate and average score (0–1). Δ is B minus A.")
             rows = []
             for name in sorted(set(a["summary"]["per_metric"]) | set(b["summary"]["per_metric"])):
                 sa = a["summary"]["per_metric"].get(name, {})
                 sb = b["summary"]["per_metric"].get(name, {})
-                rows.append({
-                    "metric": name,
-                    f"A pass": sa.get("pass_rate"), f"A avg": sa.get("avg_score"), "A err": sa.get("errors"),
-                    f"B pass": sb.get("pass_rate"), f"B avg": sb.get("avg_score"), "B err": sb.get("errors"),
-                })
+                da = sa.get("avg_score"); db = sb.get("avg_score")
+                delta = round(db - da, 3) if da is not None and db is not None else None
+                better = "" if delta is None or abs(delta) < 0.02 else ("B ▲" if delta > 0 else "A ▲")
+                rows.append({"metric": name,
+                             "A pass": sa.get("pass_rate"), "A avg": da,
+                             "B pass": sb.get("pass_rate"), "B avg": db,
+                             "Δ avg": delta, "better": better})
             st.dataframe(rows, hide_index=True, width="stretch")
+            st.caption("Differences under ~0.02 are within judge noise (measured by running one config twice).")
 
-            st.markdown("**Per case** — only cases where the two runs differ")
+            st.markdown("**Per case** — only the cases where the two runs disagree")
             ca = {c["id"]: c for c in a["cases"]}
             cb = {c["id"]: c for c in b["cases"]}
             diff = []
@@ -323,10 +352,14 @@ with tab_compare:
                 fa_ = [f"{m['metric']}={m['score']}" for m in ca[cid]["metrics"] if not m["passed"]] if cid in ca else ["(not run)"]
                 fb_ = [f"{m['metric']}={m['score']}" for m in cb[cid]["metrics"] if not m["passed"]] if cid in cb else ["(not run)"]
                 if fa_ != fb_:
+                    src = (ca.get(cid) or cb.get(cid)).get("expected_sources_found") or "-"
                     diff.append({"case": cid, "category": (ca.get(cid) or cb.get(cid))["category"],
+                                 "retrieval": src,
                                  "A": "ok" if not fa_ else ", ".join(fa_),
                                  "B": "ok" if not fb_ else ", ".join(fb_)})
             if diff:
                 st.dataframe(diff, hide_index=True, width="stretch")
+                st.caption("`retrieval` = expected source articles found in the top-4 chunks. "
+                           "A case that fails for BOTH models with retrieval < full is a retrieval problem, not a model problem.")
             else:
                 st.success("The two runs agree on every case.")
