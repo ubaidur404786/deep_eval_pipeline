@@ -1,0 +1,16 @@
+{
+  "run": {
+    "timestamp": "2026-09-12T13:38:27+00:00",
+    "app_model": "groq/openai/gpt-oss-120b",
+    "judge_model": "gemini/gemini-3.5-flash-lite",
+    "prompt_hash": "8caaebbe2646",
+    "snapshot_fetched_at": "2026-09-11T23:21:30+00:00",
+    "n_cases": 26,
+    "elapsed_s": 98.5
+  },
+  "cases": [],
+  "summary": {
+    "per_metric": {},
+    "per_category": {}
+  }
+}

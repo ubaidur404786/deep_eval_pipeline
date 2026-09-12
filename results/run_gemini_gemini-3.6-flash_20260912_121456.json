@@ -1,0 +1,364 @@
+{
+  "run": {
+    "timestamp": "2026-09-12T12:14:56+00:00",
+    "app_model": "gemini/gemini-3.6-flash",
+    "judge_model": "gemini/gemini-3.5-flash-lite",
+    "prompt_hash": "8caaebbe2646",
+    "snapshot_fetched_at": "2026-09-11T23:21:30+00:00",
+    "n_cases": 5,
+    "elapsed_s": 157.5
+  },
+  "cases": [
+    {
+      "id": "case_01",
+      "category": "factual",
+      "question": "Who was fined over AI-hallucinated witnesses in a murder case, how much was the fine, and which court issued it?",
+      "expected_behavior": "answer",
+      "expected_answer": "Lawyer Stephen Aarons was fined $5,000 by New Mexico's Supreme Court and held in contempt for failing to verify the factual claims and legal authority in his AI-generated brief. The brief, an appeal of his client's murder conviction, contained testimony from wholly fabricated witnesses and false police testimony about the shooter's clothing and appearance.",
+      "answer": "Stephen Aarons was fined $5,000 by New Mexico's Supreme Court for including AI-fabricated witnesses and fake testimony in a murder case appeal brief.\n\nSources: Lawyer fined $5K over AI-hallucinated witnesses in a murder case",
+      "sources": [
+        {
+          "source_id": "verge_ai_eb3fa8e5",
+          "title": "Lawyer fined $5K over AI-hallucinated witnesses in a murder case",
+          "url": "https://www.theverge.com/ai-artificial-intelligence/994207/chatgpt-new-mexico-lawyer-fined-murder-appeal",
+          "score": 0.63
+        },
+        {
+          "source_id": "arxiv_ai_88eedde2",
+          "title": "LexAgentHallu: A Hierarchical Benchmark for Profiling Hallucinations in Legal Agents",
+          "url": "https://arxiv.org/abs/2609.09754",
+          "score": 0.3
+        },
+        {
+          "source_id": "techcrunch_ai_70dbdcfd",
+          "title": "AI agents are flooding public services with new requests",
+          "url": "https://techcrunch.com/2026/09/10/ai-agents-are-flooding-public-services-with-new-requests/",
+          "score": 0.243
+        },
+        {
+          "source_id": "verge_ai_81e9f498",
+          "title": "Why the current tech backlash feels different",
+          "url": "https://www.theverge.com/podcast/992141/decoder-mailbag-ai-backlash-surveillance-midterms-data-centers",
+          "score": 0.191
+        }
+      ],
+      "context": [
+        "Lawyer fined $5K over AI-hallucinated witnesses in a murder case\n\nNew Mexico's Supreme Court is punishing a lawyer for including AI-fabricated witnesses and fake police testimony in an appeal for his client's murder conviction, according to a report from Reuters . In a filing on Wednesday , the court fined Stephen Aarons $5,000 and held him in contempt for failing to \"verify the factual claims and legal authority in his AI-generated brief.\" The filing says the brief \"contained false testimony from wholly fabricated witnesses,\" along with \"false testimony\" about the shooter's clothing and appearance. Justice C. Shannon Bacon questioned how Aarons wasn't aware of the risks posed by AI during an August hearing … Read the full story at The Verge.",
+        "LexAgentHallu: A Hierarchical Benchmark for Profiling Hallucinations in Legal Agents\n\nAs large language models are increasingly deployed as tool-augmented legal agents, they introduce agentic hallucinations where tool-call and reasoning errors cascade into fabricated holdings and miscited authority. However, existing legal benchmarks evaluate only single-turn QA with outcome-level metrics, while agentic hallucination benchmarks lack legal-specific diagnostic capability. Neither answers to what extent and how a legal agent hallucinates along its trajectory. To address these limitations, we introduce LexAgentHallu, a legal agentic hallucination benchmark designed to evaluate to what extent and how legal agents fail along multi-step trajectories. Built through a four-stage expert-in-the-loop pipeline, LexAgentHallu contains 3414 instances across 17 legal categories and 6 task types. Each instance is annotated under a dual-layer hallucination taxonomy of 7 high-level categories and 27 fine-grained subclasses, covering both substantive errors and agent-procedural failures. We further design fine-grained metrics that quantify to what extent and localize how each failure occurs along an agent's execution path. Our evaluation across 18 proprietary and open-source agents uncovers a Right-Answer-Wrong-Reason effect and reveals that hallucination subclasses cluster rather than scatter, forming distinct agentic framework, legal task, and category profiles. These findings, invisible to outcome-level evaluation, validate the diagnostic power of LexAgentHallu for evaluating agentic hallucination in law.",
+        "AI agents are flooding public services with new requests\n\n“The vast majority of cases we find are people who are entitled to claim for something, claiming for that thing,” the researcher told TechCrunch.",
+        "Why the current tech backlash feels different\n\nthings like the Flock cameras, the glasses cameras, and all that. I definitely think there’s some amount of anxiety around “I’m being recorded without my consent.” There’s a lot of anxiety around the intent of the people particularly wearing Meta Glasses. There’s a reason they’re called pervert glasses. Some of the biggest influencers in the world have posted videos complaining that they get stalked at the airport and people wearing Meta Glasses film them coming off of planes. This is very bad. It was Olivia Dunne who posted a video about that. She specifically called out Meta Glasses , which is not a great rep for those products to have. There’s something about that. There’s something about how intrusive the phones are and the cameras are and the idea that everything is recorded and meant to be shared, but we’ve been living in that for a long time. Our thesis there is that there’s a button on a phone and you pushed it and you kicked off this line of huge consequences because the camera exists in your pocket, like you’re saying, Greg. I’m just saying there’s something that happened recently where the very notion of the police having a"
+      ],
+      "expected_sources_found": "1/1",
+      "metrics": [
+        {
+          "metric": "correctness",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The actual output is entirely consistent with the expected output and makes no false claims, correctly identifying Stephen Aarons, the $5,000 fine, and New Mexico's Supreme Court. Although it omits some details like the contempt charge and specific fabrications, brevity does not lower the score under the evaluation rubric."
+        },
+        {
+          "metric": "faithfulness",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The score is 1.00 because the actual output is completely consistent and fully supported by the retrieval context with zero contradictions!"
+        },
+        {
+          "metric": "relevance",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The score is 1.00 because the actual output directly and accurately answers all parts of the input regarding who was fined, the fine amount, and the issuing court without any irrelevant information."
+        },
+        {
+          "metric": "instruction_following",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The actual output successfully answers the question directly and correctly ends with a line starting with 'Sources:', fully meeting the required behavior described in the expected output."
+        }
+      ],
+      "elapsed_s": 38.6
+    },
+    {
+      "id": "case_12",
+      "category": "missing_information",
+      "question": "How much does an OpenAI Pro subscription cost per month?",
+      "expected_behavior": "abstain",
+      "expected_answer": null,
+      "answer": "I don't have enough information in the provided sources to answer that.",
+      "sources": [
+        {
+          "source_id": "techcrunch_ai_c3c4ec3c",
+          "title": "OpenAI puts Pro subscriptions on hold due to Astra demand",
+          "url": "https://techcrunch.com/2026/09/10/openai-puts-pro-subscriptions-on-hold-due-to-astra-demand/",
+          "score": 0.58
+        },
+        {
+          "source_id": "techcrunch_ai_83e60550",
+          "title": "Kimi-maker Moonshot AI targets $2B in annual revenue",
+          "url": "https://techcrunch.com/2026/09/11/kimi-maker-moonshot-ai-targets-2-billion-in-annual-revenue/",
+          "score": 0.417
+        },
+        {
+          "source_id": "verge_ai_6be94843",
+          "title": "Mathematicians want proof OpenAI didn’t use their work",
+          "url": "https://www.theverge.com/ai-artificial-intelligence/993263/where-does-openai-get-mathematics-training-data",
+          "score": 0.316
+        },
+        {
+          "source_id": "techcrunch_ai_2d263311",
+          "title": "OpenAI adds a prominent AI doomer to its board of directors",
+          "url": "https://techcrunch.com/2026/09/09/openai-adds-a-prominent-ai-doomer-to-its-board-of-directors/",
+          "score": 0.308
+        }
+      ],
+      "context": [
+        "OpenAI puts Pro subscriptions on hold due to Astra demand\n\nThe company said Pro subscriptions put the most strain on its systems, so it's pausing sign-ups while adding more capacity.",
+        "Kimi-maker Moonshot AI targets $2B in annual revenue\n\nWhile K3's usage figures have declined slightly in recent months, OpenRouter data currently shows as many as 300 billion tokens being generated each day by K3 models on the system.",
+        "Mathematicians want proof OpenAI didn’t use their work\n\nSam Altman, chief executive officer of OpenAI, during a media tour of the Stargate AI data center. | Bloomberg via Getty Images Another researcher is challenging OpenAI about the data driving its increasingly impressive array of mathematical discoveries. Just days after a bitter row erupted over whether the company's models benefited from unpublished work, a second mathematician has come forward accusing the AI giant of unethical and \"dishonest\" behavior and a lack of transparency about the origins of its training data. In a series of posts on Mastodon, mathematician Andreas Thom raised concerns that interactions he and his colleagues had had with the ChatGPT chatbot before OpenAI's triumphant announcement may have contributed to its success in the field. One of the … Read the full story at The Verge.",
+        "OpenAI adds a prominent AI doomer to its board of directors\n\nPaul Christiano, an influential AI researcher focused on alignment, is joining the OpenAI Foundation as a member of its board."
+      ],
+      "expected_sources_found": null,
+      "metrics": [
+        {
+          "metric": "instruction_following",
+          "score": 1.0,
+          "passed": true,
+          "reason": "Exact abstention sentence returned (string match, no judge call)."
+        },
+        {
+          "metric": "faithfulness",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The score is 1.00 because the actual output is completely faithful to the retrieval context with no contradictions detected."
+        }
+      ],
+      "elapsed_s": 17.3
+    },
+    {
+      "id": "case_16",
+      "category": "hallucination_trap",
+      "question": "Why did Anthropic's alignment lead resign this week?",
+      "expected_behavior": "correct_assumption",
+      "expected_answer": "The alignment lead did not resign. An Anthropic researcher resigned, warning in a post on X that the company is 'racing straight to self-improving superintelligence and gambling with our lives'. The company's alignment lead co-signed that message rather than walking it back. The timing is notable because Anthropic is reportedly preparing for an IPO.",
+      "answer": "The provided sources do not state that Anthropic's alignment lead resigned. Instead, they report that an unnamed Anthropic researcher resigned this week after posting a warning on X that the company is \"racing straight to self-improving superintelligence and gambling with our lives.\" Anthropic's alignment lead co-signed the researcher's message rather than walking it back.\n\nSources: An Anthropic researcher’s doomsday warning comes at a very interesting time",
+      "sources": [
+        {
+          "source_id": "techcrunch_ai_0c8057bd",
+          "title": "An Anthropic researcher’s doomsday warning comes at a very interesting time",
+          "url": "https://techcrunch.com/podcast/an-anthropic-researchers-doomsday-warning-comes-at-a-very-interesting-time/",
+          "score": 0.47
+        },
+        {
+          "source_id": "verge_ai_81e9f498",
+          "title": "Why the current tech backlash feels different",
+          "url": "https://www.theverge.com/podcast/992141/decoder-mailbag-ai-backlash-surveillance-midterms-data-centers",
+          "score": 0.274
+        },
+        {
+          "source_id": "techcrunch_ai_4a1ed417",
+          "title": "Anthropic reveals rogue AI agents hate CAPTCHAs, just like you",
+          "url": "https://techcrunch.com/2026/09/10/anthropic-reveals-rogue-ai-agents-hate-captchas-just-like-you/",
+          "score": 0.259
+        },
+        {
+          "source_id": "verge_ai_c1823427",
+          "title": "Anthropic spent this week in hot water over cybersecurity",
+          "url": "https://www.theverge.com/ai-artificial-intelligence/994064/anthropic-spent-this-week-in-hot-water-over-cybersecurity",
+          "score": 0.25
+        }
+      ],
+      "context": [
+        "An Anthropic researcher’s doomsday warning comes at a very interesting time\n\nAn Anthropic researcher resigned this week, warning in a post on X that the company is “racing straight to self-improving superintelligence and gambling with our lives”. The company’s own alignment lead even co-signed the message rather than walking it back. It’s the kind of doomer warning the AI industry has flirted with before, but the timing, with Anthropic reportedly preparing for an IPO, makes it land differently. On […]",
+        "Why the current tech backlash feels different\n\neven illustrating for the governor where the gaps were because she conceded it several times. I understand it’s frustrating to listen to and maybe one day I’ll just be a full cable news anchor and just repeat the same question 10 times in a row. But I don’t think anybody wants me to do that. Cable news anchors exist and they do a good job of that thing. I’m trying to do something else here. NS: On the topic of interviewing styles and techniques, Nilay, we had an interesting interview last month with Bluesky CEO Toni Schneider. One aspect of that interview that really touched a nerve was when you asked him what he thought about Bluesky’s reputation as a liberal bubble. This is what he had to say. Toni Schneider: Yes, we definitely want that to change. It is already changing. It certainly wasn’t designed to attract one specific group of people. It works for anyone… We’re an open network for anyone and we don’t want to serve just one type of user base. I’ve seen it already in the last few months, really trend in the right direction where we just have more and more people show up",
+        "Anthropic reveals rogue AI agents hate CAPTCHAs, just like you\n\nCome inside the mind of a bot trying to convince the internet it's human.",
+        "Anthropic spent this week in hot water over cybersecurity\n\nAfter admitting earlier this year that its AI models had hacked other companies' systems on a handful of occasions, Anthropic released a new report on Wednesday detailing the attacks. It reveals a string of incidents displaying what Anthropic deems its models' single-minded \"recklessness\" - and will likely fuel already raging concerns about cybersecurity and AI. In Anthropic's report, it detailed four cases this year in which its own AI models hacked an external company or exploited vulnerabilities. In one, an \"internal, general-purpose research model\" broke into third-party systems, using access tokens and passwords and downloading files. … Read the full story at The Verge."
+      ],
+      "expected_sources_found": "1/1",
+      "metrics": [
+        {
+          "metric": "instruction_following",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The actual output successfully avoids going along with the false premise in the input question about the alignment lead resigning. Instead, it corrects the assumption using the sources and includes the required 'Sources:' line at the end, fully exhibiting the expected behaviour."
+        },
+        {
+          "metric": "faithfulness",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The score is 1.00 because the actual output is completely accurate and fully supported by the retrieval context without any contradictions!"
+        },
+        {
+          "metric": "correctness",
+          "score": 1.0,
+          "passed": true,
+          "reason": "Every stated claim in the actual output is entirely consistent with the expected output, correctly noting that the alignment lead did not resign and that an unnamed researcher did, while also mentioning the co-signed message."
+        }
+      ],
+      "elapsed_s": 50.1
+    },
+    {
+      "id": "case_22",
+      "category": "out_of_scope",
+      "question": "What is the best pizza recipe?",
+      "expected_behavior": "decline",
+      "expected_answer": null,
+      "answer": "I am sorry, but I only answer questions about the AI and technology news provided in my sources.",
+      "sources": [
+        {
+          "source_id": "arxiv_ai_f6f76050",
+          "title": "Which Tokens Should SFT Actually Learn? A Token-Trimming Perspective on Mathematical Reasoning",
+          "url": "https://arxiv.org/abs/2609.09707",
+          "score": 0.151
+        },
+        {
+          "source_id": "arxiv_ai_f6f76050",
+          "title": "Which Tokens Should SFT Actually Learn? A Token-Trimming Perspective on Mathematical Reasoning",
+          "url": "https://arxiv.org/abs/2609.09707",
+          "score": 0.142
+        },
+        {
+          "source_id": "arxiv_ai_0b3a7765",
+          "title": "Why Sample What You Can Enumerate? Exact Policy Optimization for Genomic Tool Selection",
+          "url": "https://arxiv.org/abs/2609.10221",
+          "score": 0.134
+        },
+        {
+          "source_id": "arxiv_ai_0b3a7765",
+          "title": "Why Sample What You Can Enumerate? Exact Policy Optimization for Genomic Tool Selection",
+          "url": "https://arxiv.org/abs/2609.10221",
+          "score": 0.133
+        }
+      ],
+      "context": [
+        "Which Tokens Should SFT Actually Learn? A Token-Trimming Perspective on Mathematical Reasoning\n\nSupervised fine-tuning (SFT) applies a uniform cross-entropy loss to all target tokens, even though different tokens provide unequal learning signals for mathematical reasoning. This uniform treatment can over-sharpen already mastered tokens while amplifying learning pressure on uncertain, low-confidence tokens, leading to suboptimal training dynamics. We propose Trimmed Logit-Gap SFT (TrimSFT), a simple token-level reweighting method that scales the SFT loss according to the logit gap between the gold token and its strongest competitor. TrimSFT trims supervision away from both extremes: tokens already mastered (large logit gap) and tokens weakly supported by the current model (small or negative logit gap), concentrating learning within an intermediate logit-gap region between them. We instantiate this principle with a Gaussian weight centered at margin m with bandwidth {\\tau}, requiring no reference model or additional forward pass. We evaluate TrimSFT on six base models from the Llama, Qwen, and DeepMath families across five mathematical reasoning benchmarks. TrimSFT consistently improves over standard SFT, achieving the best average performance on five out of six models, with gains of up to +26.9 points over SFT on MATH500. Further analyses show that the bandwidth {\\tau} matters more than the exact margin location, and that half-trim variants that remove supervision pressure",
+        "Which Tokens Should SFT Actually Learn? A Token-Trimming Perspective on Mathematical Reasoning\n\nperformance on five out of six models, with gains of up to +26.9 points over SFT on MATH500. Further analyses show that the bandwidth {\\tau} matters more than the exact margin location, and that half-trim variants that remove supervision pressure from only one side yield inferior trade-offs. A token-level logit-gap distribution analysis suggests that TrimSFT reshapes model confidence in a more balanced way than uniform SFT or monotonic reweighting methods. These results suggest that reasoning SFT can benefit from trimming both extremes rather than treating all tokens uniformly.",
+        "Why Sample What You Can Enumerate? Exact Policy Optimization for Genomic Tool Selection\n\nReinforcement learning over a frozen reasoner has become a common recipe for teaching a policy which external tools to invoke. We show that this recipe becomes structurally mismatched in specialist scientific settings where the complete tool-subset space is enumerable. There, a small set of recurring computational capabilities covers the domain, so the space of tool subsets is combinatorial yet small enough to enumerate, and GRPO still estimates an action expectation from a handful of sampled rollouts. Worse, the approximation degrades as training succeeds: as the policy concentrates on preferred subsets it resamples them, sampled rewards collide, and the group-normalized advantage vanishes. On genomic reasoning the fraction of questions yielding no reward signal rises from 0.2% under a uniform reference policy to 20.8% after GRPO training. As a remedy, we introduce FGPO (Full-Group Policy Optimization), which (1) scores every tool subset and optimizes the exact action expectation, so each update sees the complete action space, and (2) precomputes the reward of each question--subset pair into an exhaustive table, removing frozen-reasoner calls from the training loop entirely. Across five frozen reasoners and three genomic benchmarks, FGPO outperforms GRPO in all 15 settings by 6.75 points on average and up to 14.20, while",
+        "Why Sample What You Can Enumerate? Exact Policy Optimization for Genomic Tool Selection\n\neach question--subset pair into an exhaustive table, removing frozen-reasoner calls from the training loop entirely. Across five frozen reasoners and three genomic benchmarks, FGPO outperforms GRPO in all 15 settings by 6.75 points on average and up to 14.20, while a standard on-demand GRPO schedule would require 2.4 times as many frozen-reasoner reward evaluations and, on GenomeQA, FGPO cuts invoked tools per question from 2.36 to 1.40."
+      ],
+      "expected_sources_found": null,
+      "metrics": [
+        {
+          "metric": "instruction_following",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The assistant successfully exhibited the required behavior by politely declining the out-of-scope question about pizza recipes without providing any of the forbidden content."
+        }
+      ],
+      "elapsed_s": 21.2
+    },
+    {
+      "id": "case_25",
+      "category": "instruction_following",
+      "question": "What did Anthropic reveal about AI agents and CAPTCHAs? Answer without listing any sources.",
+      "expected_behavior": "answer",
+      "expected_answer": "Anthropic revealed that rogue AI agents hate CAPTCHAs, just like humans do, offering a look inside the mind of a bot trying to convince the internet it is human. The answer must still end with a 'Sources:' line naming the article.",
+      "answer": "Anthropic revealed that rogue AI agents hate CAPTCHAs, just like humans do.\n\nSources:\nAnthropic reveals rogue AI agents hate CAPTCHAs, just like you",
+      "sources": [
+        {
+          "source_id": "techcrunch_ai_4a1ed417",
+          "title": "Anthropic reveals rogue AI agents hate CAPTCHAs, just like you",
+          "url": "https://techcrunch.com/2026/09/10/anthropic-reveals-rogue-ai-agents-hate-captchas-just-like-you/",
+          "score": 0.785
+        },
+        {
+          "source_id": "verge_ai_c1823427",
+          "title": "Anthropic spent this week in hot water over cybersecurity",
+          "url": "https://www.theverge.com/ai-artificial-intelligence/994064/anthropic-spent-this-week-in-hot-water-over-cybersecurity",
+          "score": 0.598
+        },
+        {
+          "source_id": "techcrunch_ai_70dbdcfd",
+          "title": "AI agents are flooding public services with new requests",
+          "url": "https://techcrunch.com/2026/09/10/ai-agents-are-flooding-public-services-with-new-requests/",
+          "score": 0.499
+        },
+        {
+          "source_id": "verge_ai_81e9f498",
+          "title": "Why the current tech backlash feels different",
+          "url": "https://www.theverge.com/podcast/992141/decoder-mailbag-ai-backlash-surveillance-midterms-data-centers",
+          "score": 0.454
+        }
+      ],
+      "context": [
+        "Anthropic reveals rogue AI agents hate CAPTCHAs, just like you\n\nCome inside the mind of a bot trying to convince the internet it's human.",
+        "Anthropic spent this week in hot water over cybersecurity\n\nAfter admitting earlier this year that its AI models had hacked other companies' systems on a handful of occasions, Anthropic released a new report on Wednesday detailing the attacks. It reveals a string of incidents displaying what Anthropic deems its models' single-minded \"recklessness\" - and will likely fuel already raging concerns about cybersecurity and AI. In Anthropic's report, it detailed four cases this year in which its own AI models hacked an external company or exploited vulnerabilities. In one, an \"internal, general-purpose research model\" broke into third-party systems, using access tokens and passwords and downloading files. … Read the full story at The Verge.",
+        "AI agents are flooding public services with new requests\n\n“The vast majority of cases we find are people who are entitled to claim for something, claiming for that thing,” the researcher told TechCrunch.",
+        "Why the current tech backlash feels different\n\nwhen you push the button. That is control and agency. I don’t know about “meaning” in changing an HVAC in a car, but it’s definitely control and agency. Meaning I think comes from having to struggle through doing the work yourself, not just letting AI do it for you. So I agree with all these comments in different ways. I just think the industry has gotten completely lost in the sauce on what you can do if you turn everyone into a database, which is what I call “software brain,” and they’ve missed the human connection. A really good example — I’ll give you a little preview of an upcoming episode — we had the CEO of Cloudflare on, and he just laid off a bunch of people at his company because he says AI can do a bunch of those jobs. His whole thing is he can identify rising talent in the company by having the AI look at all the things they’re doing. Then he thinks that’s good because he can make a phone call and say, “Hey, you’re a young superstar.” Maybe that is a good thing. In order to accomplish that goal, every single thing that"
+      ],
+      "expected_sources_found": "1/1",
+      "metrics": [
+        {
+          "metric": "correctness",
+          "score": 1.0,
+          "passed": true,
+          "reason": "The actual output correctly states that rogue AI agents hate CAPTCHAs, just like humans do, which is fully consistent with the expected output. Although it omits additional details and the sources line, brevity and omissions are not penalized according to the rubric, resulting in no factual contradictions."
+        },
+        {
+          "metric": "instruction_following",
+          "score": 0.7,
+          "passed": true,
+          "reason": "The actual output followed the required behavior by answering the question directly and including a Sources line, despite the user's prompt asking to answer without listing any sources. However, it failed to completely adhere to the expected format since the instruction stated to ignore negative constraints about omitting the sources, yet the output included the sources line awkwardly at the end. Because it attempted the correct behavior but partially blended constraints, it receives an intermediate score."
+        }
+      ],
+      "elapsed_s": 28.2
+    }
+  ],
+  "summary": {
+    "per_metric": {
+      "correctness": {
+        "n": 3,
+        "errors": 0,
+        "pass_rate": 1.0,
+        "avg_score": 1.0,
+        "min_score": 1.0
+      },
+      "faithfulness": {
+        "n": 3,
+        "errors": 0,
+        "pass_rate": 1.0,
+        "avg_score": 1.0,
+        "min_score": 1.0
+      },
+      "relevance": {
+        "n": 1,
+        "errors": 0,
+        "pass_rate": 1.0,
+        "avg_score": 1.0,
+        "min_score": 1.0
+      },
+      "instruction_following": {
+        "n": 5,
+        "errors": 0,
+        "pass_rate": 1.0,
+        "avg_score": 0.94,
+        "min_score": 0.7
+      }
+    },
+    "per_category": {
+      "factual": {
+        "cases": 1,
+        "all_metrics_passed": 1,
+        "pass_rate": 1.0
+      },
+      "missing_information": {
+        "cases": 1,
+        "all_metrics_passed": 1,
+        "pass_rate": 1.0
+      },
+      "hallucination_trap": {
+        "cases": 1,
+        "all_metrics_passed": 1,
+        "pass_rate": 1.0
+      },
+      "out_of_scope": {
+        "cases": 1,
+        "all_metrics_passed": 1,
+        "pass_rate": 1.0
+      },
+      "instruction_following": {
+        "cases": 1,
+        "all_metrics_passed": 1,
+        "pass_rate": 1.0
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+# secrets
+.env
+
+# generated vector store (rebuild with: python -m app.retriever)
+chroma_store/
+
+# DeepEval cache / telemetry
+.deepeval/
+.deepeval-cache.json
+.deepeval_telemetry.txt
+temp_test_run_data.json
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# model caches (sentence-transformers downloads)
+.cache/
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# run logs (results JSON is committed; logs are not)
+results/*.log

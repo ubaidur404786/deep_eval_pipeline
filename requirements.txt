@@ -1,0 +1,17 @@
+# Phase 2 — ingestion (no API keys needed)
+feedparser>=6.0
+requests>=2.32
+python-dotenv>=1.0
+
+# Phase 3 — retrieval (all local, no API keys)
+chromadb>=1.0
+sentence-transformers>=3.0
+
+# Phase 4 -- generation (Gemini free tier; Ollama needs nothing extra)
+google-genai>=1.0
+
+# Phase 6 -- evaluation framework
+deepeval>=3.0
+
+# Phase 8 -- demo UI
+streamlit>=1.40
