@@ -121,29 +121,55 @@ A full diagram is in [`docs/architecture.pdf`](docs/architecture.pdf).
 
 ## What it found so far
 
-First full run — app model `gemini-3.1-flash-lite`, judge `gemini-3.5-flash-lite`, 26 cases:
+Two complete 26-case runs exist, with two different application models.
+
+**Run 1 — `gemini-3.1-flash-lite`** (judge `gemini-3.5-flash-lite`):
 
 ```text
 metric                  pass    avg
 correctness             100%   0.99
 faithfulness             90%   0.93
 relevance                85%   0.94
-instruction_following    85%   0.83
+instruction_following    85%   0.83        6 of 26 cases failed
 ```
 
-Six cases failed, and they fail for three different reasons — which is exactly
-what the framework is for:
+**Run 2 — `openai/gpt-oss-120b` on Groq** (judge `gemini-3.1-flash-lite`):
 
-- **Real mistakes by the assistant** — one article gives two different numbers
-  (93% and 99%) and the assistant quietly picked one instead of reporting both.
-- **Retrieval misses** — two questions need two articles each; the retriever
-  found only one, so the assistant could not have answered well. The pipeline
-  reports this separately, before any judge is involved.
-- **Judge mistakes** — the judge scored a correct answer 0.0 on faithfulness
-  because the wording differed from the source. Reading the reason made this obvious.
+```text
+metric                  pass    avg
+correctness              94%   0.96
+faithfulness             95%   0.98
+relevance                92%   0.97
+instruction_following    77%   0.80        7 of 26 cases failed
+```
 
-A cross-vendor comparison (Gemini vs OpenAI's `gpt-oss-120b` on Groq) is set up
-and will be added here as soon as the daily judge quota allows the run to finish.
+The two runs used different judges (free-tier daily caps forced the switch), so
+the numbers above are **not** a head-to-head comparison — the framework refuses
+to compare them for exactly that reason. A proper same-judge comparison is the
+next step (see Status).
+
+What the failures are, in both runs, falls into three kinds — and telling them
+apart is the whole point of the framework:
+
+- **Real mistakes by the assistant.** One article gives two figures (93% and
+  99%); the small model quietly picked one, the large model gave both but did
+  not flag the conflict. And the *larger* model fell for a false premise —
+  asked why Anthropic's alignment lead resigned, it wrote "resigned in protest",
+  when the source says a researcher resigned and the alignment lead only
+  co-signed. The small model corrected the premise. Bigger is not automatically safer.
+- **Retrieval misses.** Two questions need two articles each; the retriever
+  finds only one. Both models fail those cases the same way, because no model
+  can answer from text it never saw. The pipeline reports this separately,
+  before any judge is involved.
+- **Judge mistakes.** The judge scored a correct answer 0.0 on faithfulness
+  because the wording differed from the source, and called "Thursday"
+  irrelevant to a question that asked *when*. Reading the reason makes these obvious.
+
+Reading the second run's reasons also exposed that half of its original
+failures were caused by the *framework* — the judge was grading the required
+`Sources:` line as "irrelevant meta-information" and reading a cited article
+title as a factual claim. Fixed: faithfulness and relevance now see only the
+answer body. Details in [DETAIL.md](DETAIL.md#14-things-that-went-wrong-and-what-i-learned).
 
 ## Try it
 
@@ -178,9 +204,9 @@ docs/            architecture diagram, evaluation flow explained
 
 ## Status
 
-- ✅ Application, framework, 26 golden cases, pipeline, Streamlit demo, docs
-- ✅ One full evaluation run with real, honest results (including failures)
-- ⏳ Cross-vendor model comparison — run pending daily quota reset
+- ✅ Application, framework, 26 golden cases, pipeline, Streamlit demo (4 tabs), docs
+- ✅ Two complete evaluation runs with real, honest results — including failures on both sides
+- ⏳ Same-judge comparison: `gpt-oss-120b` vs `gpt-oss-20b` (both judged by `gemini-3.1-flash-lite`) — runs queued for the next daily quota window
 - ⏳ Next ideas: completeness metric, safety metric, a reranker experiment, noise-floor measurement
 
 Built as a learning project. If something is unclear, that is a bug in the docs — please open an issue.

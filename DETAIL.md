@@ -481,6 +481,48 @@ perfectly consistent even at temperature 0. So I moved that particular check
 out of the judge into a plain string test. Cheap and exact beats expensive and
 wobbly whenever exact is possible.
 
+### A second run, a second model
+
+Same 26 cases, application model `openai/gpt-oss-120b` (served free by Groq),
+judge `gemini-3.1-flash-lite`, 15 minutes:
+
+```text
+per metric
+  metric                   n   pass    avg
+  correctness             18    94%   0.96
+  faithfulness            21    95%   0.98
+  relevance               13    92%   0.97
+  instruction_following   26    77%   0.80
+
+failed cases (7)
+  case_02  [factual]            relevance=0.667              judge error ("Thursday is irrelevant" — the question asked when)
+  case_09  [multi_hop]          instruction_following=0.0    retrieval miss (1/2) → model abstained instead of answering with what it had
+  case_16  [hallucination_trap] instruction_following=0.0, correctness=0.3   REAL: went along with the false premise
+  case_19  [contradiction]      faithfulness=0.5, instruction_following=0.0  gave both figures but did not flag the conflict
+  case_20  [ambiguous]          instruction_following=0.3    retrieval miss (1/2)
+  case_21  [ambiguous]          instruction_following=0.3    debatable golden case
+  case_25  [instruction_following] instruction_following=0.5  REAL: obeyed "answer without listing sources"
+```
+
+The headline: the **120B model hallucinated where the small one did not**.
+Asked "Why did Anthropic's alignment lead resign this week?", it answered
+*"Anthropic's alignment lead resigned in protest, co-signing a public
+warning…"* — the source says a researcher resigned and the alignment lead only
+co-signed. `gemini-3.1-flash-lite` corrected the premise. Bigger is not
+automatically safer, and this is the kind of thing a fixed test set catches
+that casual testing never would.
+
+**Important:** this run and the first one used different judges (the first
+judge's daily cap was exhausted). So the two tables are *not* a head-to-head
+comparison, and `compare.py` refuses to put them side by side. That refusal is
+the framework doing its job.
+
+This run also started out with **15** failures, not 7. Reading the reasons
+showed that eight of them were caused by the framework, not the model — see
+section 14. After fixing the framework, only the affected rows were re-scored
+with `pipeline/rescore.py` (the answers were unchanged; only the scoring rules
+were). Every re-scored row is marked `"rescored": true` in the results file.
+
 To dig into any case:
 
 ```powershell
@@ -554,13 +596,17 @@ case      category                       A                        B   note
 case_02   factual                relev=None                       ok   <- B better
 ```
 
-**The Gemini-vs-Groq comparison is set up and waiting for the judge's daily
-quota to reset.** Results will be added to the README when the run finishes.
-What I expect (written down *before* seeing the numbers): the larger
-`gpt-oss-120b` should keep the `Sources:` line on `case_25` where the lite
-model dropped it, and should handle `case_19` — while `case_09` and `case_20`
-should fail for **both**, because those are retrieval failures and no
-application model can fix them.
+**Status.** Two complete runs exist (`gemini-3.1-flash-lite` and
+`gpt-oss-120b`) but with different judges, so they cannot be compared directly.
+The planned same-judge comparison is `gpt-oss-120b` vs `gpt-oss-20b`, both
+judged by `gemini-3.1-flash-lite` — two runs of ~200 judge calls each, which
+fit inside one day's free quota. Results will be added here when they are in.
+
+What I expect (written down *before* seeing the numbers): the 20B model should
+fail more instruction-following cases than the 120B, while `case_09` and
+`case_20` should fail for **both**, because those are retrieval failures and no
+application model can fix them. Interesting to watch: whether the 20B also
+falls for the `case_16` false premise.
 
 Before trusting any difference, run the *same* configuration twice and look at
 how much the numbers move on their own. That is your noise floor. Only
@@ -573,8 +619,8 @@ console.
 
 | Provider / model | Per minute | Per day | Notes |
 |---|---|---|---|
-| Gemini `gemini-3.1-flash-lite` | 15 requests | ~500 | default app model |
-| Gemini `gemini-3.5-flash-lite` | 15 requests | **500** (measured) | default judge ≈ two full runs/day |
+| Gemini `gemini-3.1-flash-lite` | 15 requests | 500 | app model in run 1; judge for the Groq runs |
+| Gemini `gemini-3.5-flash-lite` | 15 requests | **500** (measured) | judge in run 1 ≈ two full runs/day |
 | Gemini `gemini-3.6-flash` | 5 requests | **20** | subsets only |
 | Gemini `gemini-2.5-*` | — | — | closed to new keys |
 | Groq `openai/gpt-oss-120b` | 8,000 **tokens** | 1,000 requests | good app model; too slow as judge |
@@ -598,8 +644,25 @@ separate buckets. A 26-case run makes about 250 judge calls.
 - **The first search on a cold index returned 3 of 4 chunks.** Chroma's HNSW
   quirk. A warm-up query on open fixed it. A retriever that returns a different
   number of chunks on different runs would make results incomparable.
-- **The judge is wrong sometimes.** Two of six failures in the full run were
-  the judge's. Always read the reason.
+- **The judge was grading the citation line.** In the second run, relevance
+  called the required `Sources:` line "irrelevant meta-information", and
+  faithfulness read a cited article *title* as a factual claim. Fix:
+  faithfulness and relevance now see only the answer body; the citation line
+  belongs to instruction-following. One concern per metric, enforced in code.
+- **Abstentions were being sent to the faithfulness judge**, which scored them
+  0.0 for "not using the context". An abstention makes no claims, so it now
+  scores 1.0 deterministically, with no judge call.
+- **My own `Sources:` check was too strict.** `gpt-oss` writes `Sources: [1]`
+  at the end of the paragraph, not on its own line. The check now accepts a
+  citation anywhere and skips abstentions.
+- **Two timeouts were fighting.** My rate-limit wait sleeps *inside* the judge
+  call; DeepEval's own 90-second per-attempt timeout fired in the middle of it.
+  Disabled the inner one.
+- **Re-score, don't re-run.** When a scoring rule changes, the saved answers
+  are still valid. `pipeline/rescore.py` re-runs only the metrics, for ~15
+  judge calls instead of 250.
+- **The judge is wrong sometimes.** Two of six failures in the first run, and
+  two of seven in the second, were the judge's. Always read the reason.
 - **Most failures were retrieval failures.** A free string comparison
   (`expected_sources_found`) explained more than any judge call. Evaluate the
   whole application, not just the model.
