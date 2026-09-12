@@ -26,3 +26,7 @@ __pycache__/
 
 # run logs (results JSON is committed; logs are not)
 results/*.log
+
+# editor / assistant tool folders
+.claude/
+.agents/
