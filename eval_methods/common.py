@@ -12,7 +12,24 @@ The framework never imports from app/. It receives strings and lists; where
 they came from is not its business. That is what makes it reusable.
 """
 
+import re
+
 from deepeval.test_case import LLMTestCase
+
+# "Sources: ..." to the end of the answer (the citation line the system prompt
+# requires). Matches whether it sits on its own line or inline after the text.
+SOURCES_PATTERN = re.compile(r"\s*sources?\s*:.*\Z", re.IGNORECASE | re.DOTALL)
+
+
+def strip_sources_line(answer: str) -> str:
+    """Return the answer body without its citation line.
+
+    Faithfulness and relevance judge WHAT the answer says; the citation line is
+    a formatting rule judged by instruction_following. Left in, judges call
+    the citation "irrelevant meta-information" or read a cited article TITLE as
+    a factual claim. One concern per metric -- so each metric sees only its part."""
+    body = SOURCES_PATTERN.sub("", answer).strip()
+    return body or answer  # never hand the judge an empty string
 
 
 def build_test_case(

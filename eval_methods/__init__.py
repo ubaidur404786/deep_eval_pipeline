@@ -18,7 +18,10 @@ import os
 # are guaranteed to be in place when DeepEval reads its settings.
 os.environ.setdefault("DEEPEVAL_TELEMETRY_OPT_OUT", "YES")   # no usage phone-home
 # Rate-limit retries are handled in judge.py (DeepEval's Gemini retry policy
-# does not load in 4.2.2), so no DEEPEVAL_RETRY_* settings are needed here.
+# does not load in 4.2.2). Our retry SLEEPS inside the call while waiting for
+# the quota window, so DeepEval's own per-attempt timeout (~90 s) must not
+# fire in the middle of that wait.
+os.environ.setdefault("DEEPEVAL_DISABLE_TIMEOUTS", "1")
 
 from eval_methods import correctness, faithfulness, instruction_following, relevance  # noqa: E402
 

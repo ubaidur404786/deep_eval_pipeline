@@ -80,7 +80,10 @@ RUBRIC = [
 
 
 def has_sources_line(answer: str) -> bool:
-    return any(line.strip().lower().startswith("sources:") for line in answer.splitlines())
+    """True if the answer cites its sources anywhere. Some models put
+    'Sources: [1]' at the end of the last paragraph rather than on its own
+    line; that is a formatting nuance for the judge, not a missing citation."""
+    return "sources:" in answer.lower()
 
 
 def evaluate(
@@ -102,10 +105,13 @@ def evaluate(
             "reason": "Exact abstention sentence returned (string match, no judge call).",
         }
 
-    # cheap path 2: an 'answer' without a Sources line breaks rule 8. This is a
-    # string check, not a judgement -- leaving it to the judge produced 0.5 on
-    # one run and 0.7 on the next for the identical failure.
-    if expected_behavior == "answer" and not has_sources_line(answer):
+    # cheap path 2: an 'answer' without any Sources citation breaks rule 8.
+    # This is a string check, not a judgement -- leaving it to the judge
+    # produced 0.5 on one run and 0.7 on the next for the identical failure.
+    # An abstention is exempt (it uses no sources); the judge will score it
+    # as "abstained when it should have answered" instead.
+    is_abstention = answer.strip() == ABSTENTION_MESSAGE
+    if expected_behavior == "answer" and not is_abstention and not has_sources_line(answer):
         return {
             "metric": NAME,
             "score": 0.5,

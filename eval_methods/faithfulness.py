@@ -21,8 +21,8 @@ abstention scores 1.0 by construction.
 
 from deepeval.metrics import FaithfulnessMetric
 
-from config.settings import PASS_THRESHOLD
-from eval_methods.common import build_test_case, run_metric
+from config.settings import ABSTENTION_MESSAGE, PASS_THRESHOLD
+from eval_methods.common import build_test_case, run_metric, strip_sources_line
 from eval_methods.judge import get_judge
 
 NAME = "faithfulness"
@@ -35,11 +35,23 @@ def evaluate(
     expected_answer: str | None = None,   # unused: reference-free
     expected_behavior: str | None = None,  # unused
 ) -> dict:
+    # cheap path: the abstention sentence makes no factual claim, so there is
+    # nothing that could be unfaithful. Scoring it deterministically also stops
+    # a judge from calling "did not use the context" a faithfulness failure.
+    if answer.strip() == ABSTENTION_MESSAGE:
+        return {
+            "metric": NAME,
+            "score": 1.0,
+            "passed": True,
+            "reason": "Abstention contains no claims; nothing to contradict the context (string match, no judge call).",
+        }
+
     metric = FaithfulnessMetric(
         threshold=PASS_THRESHOLD,
         model=get_judge(),
         include_reason=True,
         async_mode=False,
     )
-    test_case = build_test_case(question, answer, context=context)
+    # judge the body only; the citation line is instruction_following's job
+    test_case = build_test_case(question, strip_sources_line(answer), context=context)
     return run_metric(NAME, metric, test_case)
