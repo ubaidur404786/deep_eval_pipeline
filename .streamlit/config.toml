@@ -1,0 +1,18 @@
+[theme]
+base = "light"
+primaryColor = "#2457C5"
+backgroundColor = "#F3F6F4"
+secondaryBackgroundColor = "#E8EDEA"
+textColor = "#1B2A3A"
+font = "Instrument Sans, system-ui, sans-serif"
+headingFont = "Bricolage Grotesque, Instrument Sans, sans-serif"
+codeFont = "Instrument Sans, system-ui, sans-serif"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true

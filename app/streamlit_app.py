@@ -31,6 +31,7 @@ import streamlit as st
 
 from app.rag_pipeline import answer_question
 from app.retriever import build_store
+from app.ui_theme import failure_map_html, hero, inject_css
 from config.settings import ABSTENTION_MESSAGE, APP_MODEL, APP_PROVIDER, RESULTS_DIR
 from eval_methods import METRICS
 from eval_methods.instruction_following import BEHAVIOR_DESCRIPTIONS
@@ -38,17 +39,17 @@ from eval_methods.judge import judge_name
 from golden_data.loader import load_golden_data
 from pipeline.compare import check_comparable
 
-st.set_page_config(page_title="RAG Eval Demo", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="RAG Evaluation Framework", page_icon="🧪", layout="wide")
 
 # Models a viewer can pick for the APPLICATION. Only providers with a key in
 # .env are offered. Limits measured 2026-09-12 on free tiers.
 APP_MODEL_OPTIONS = {
-    "gemini/gemini-3.1-flash-lite": ("gemini", "gemini-3.1-flash-lite", "15 req/min · ~500/day · default"),
-    "gemini/gemini-3.5-flash-lite": ("gemini", "gemini-3.5-flash-lite", "15 req/min · shares the judge's quota"),
-    "gemini/gemini-3.6-flash":      ("gemini", "gemini-3.6-flash",      "5 req/min · only 20/day"),
-    "groq/openai/gpt-oss-120b":     ("groq",   "openai/gpt-oss-120b",   "1000 req/day · 8K tokens/min"),
-    "groq/openai/gpt-oss-20b":      ("groq",   "openai/gpt-oss-20b",    "1000 req/day · 8K tokens/min"),
-    "groq/qwen/qwen3.8-27b":        ("groq",   "qwen/qwen3.8-27b",      "1000 req/day · 8K tokens/min"),
+    "gemini/gemini-3.1-flash-lite": ("gemini", "gemini-3.1-flash-lite", "15 requests a minute, about 500 a day"),
+    "gemini/gemini-3.5-flash-lite": ("gemini", "gemini-3.5-flash-lite", "15 requests a minute, about 500 a day"),
+    "gemini/gemini-3.6-flash":      ("gemini", "gemini-3.6-flash",      "5 requests a minute and only 20 a day"),
+    "groq/openai/gpt-oss-120b":     ("groq",   "openai/gpt-oss-120b",   "1,000 requests a day, 8K tokens a minute"),
+    "groq/openai/gpt-oss-20b":      ("groq",   "openai/gpt-oss-20b",    "1,000 requests a day, 8K tokens a minute"),
+    "groq/qwen/qwen3.8-27b":        ("groq",   "qwen/qwen3.8-27b",      "1,000 requests a day, 8K tokens a minute"),
 }
 KEY_FOR_PROVIDER = {"gemini": "GOOGLE_API_KEY", "groq": "GROQ_API_KEY"}
 
@@ -80,7 +81,7 @@ def result_files() -> list[tuple[str, Path]]:
         if len(r["cases"]) < r["run"]["n_cases"]:
             continue  # partial run -- not comparable
         stamp = r["run"]["timestamp"][:16].replace("T", " ")
-        out.append((f"{r['run']['app_model']}  ·  {stamp}  ·  judge {r['run']['judge_model'].split('/')[-1]}", path))
+        out.append((f"{r['run']['app_model']}  ({stamp}, judge {r['run']['judge_model'].split('/')[-1]})", path))
     return out
 
 
@@ -89,7 +90,12 @@ def result_files() -> list[tuple[str, Path]]:
 # ---------------------------------------------------------------------------
 def render_answer(result: dict, expected_ids: list[str]) -> None:
     st.markdown("#### Answer")
-    st.info(result["answer"]) if result["answer"].strip() == ABSTENTION_MESSAGE else st.success(result["answer"])
+    # a statement, not a bare expression: Streamlit "magic" would otherwise
+    # render the returned element object as a help table
+    if result["answer"].strip() == ABSTENTION_MESSAGE:
+        st.info(result["answer"])
+    else:
+        st.success(result["answer"])
 
     retrieved = {s["source_id"] for s in result["sources"]}
     if expected_ids:
@@ -178,18 +184,17 @@ with st.sidebar:
         "Application model",
         keys,
         index=keys.index(default_key) if default_key in keys else 0,
-        format_func=lambda k: f"{k}  —  {available[k][2]}",
     )
-    app_provider, app_model, _ = available[choice]
-    st.caption("Switch freely — the same question, the same judge, a different model.")
+    app_provider, app_model, limits = available[choice]
+    st.caption(f"Free tier: {limits}. Switch freely: same question, same judge, different model.")
 
     st.markdown(f"**Judge:** `{judge_name()}`")
     st.caption("Fixed from .env. Comparisons only mean something with one judge.")
 
     st.divider()
     st.caption(
-        "Costs: *Run application* = 1 API call. *Run evaluation* = 5–12 judge calls. "
-        "Free tiers cap the judge at ~500 calls/day."
+        "*Run application* makes one API call. *Run evaluation* makes 5 to 12 judge calls; "
+        "the free tier allows about 500 a day."
     )
     if st.button("Clear results", width="stretch"):
         for k in list(st.session_state):
@@ -200,20 +205,51 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 # page
 # ---------------------------------------------------------------------------
-st.title("🧪 RAG Evaluation Framework")
-st.caption("A reusable LLM/RAG evaluation framework, demonstrated on an AI & Technology News Assistant.")
-with st.expander("About this demo — what each tab does"):
+inject_css()
+
+hero(
+    "Does the chatbot actually answer well?",
+    "A reusable evaluation framework for RAG applications, shown on an AI & technology news "
+    "assistant: 26 hand-written test cases, four metrics that each check one thing, one fixed "
+    "judge model, three application models. Every score comes with the judge's written reason.",
+    'Built on free APIs only. <a href="https://github.com/ubaidur404786/deep_eval_pipeline" target="_blank">Code and full write-up on GitHub</a>.',
+)
+
+# --- the failure map: one row per complete run, one cell per case ---
+_files = result_files()
+_runs = []
+_judges = set()
+for _label, _path in _files:
+    _r = load_results(_path)
+    _judges.add(_r["run"]["judge_model"])
+    _runs.append((_r["run"]["app_model"].split("/", 1)[-1], _r))
+_runs.sort(key=lambda t: t[0])  # a stable, readable order: gemini…, openai/gpt-oss-120b, openai/gpt-oss-20b
+_case_ids = [c["id"] for c in golden_cases()]
+if _runs:
+    st.markdown("#### Three models, the same 26 questions, the same judge" if len(_runs) == 3
+                else f"#### {len(_runs)} complete run{'s' if len(_runs) != 1 else ''}, the same 26 questions")
+    st.markdown(failure_map_html(_runs, _case_ids), unsafe_allow_html=True)
+    if len(_judges) > 1:
+        st.caption("Rows were judged by different models and are not directly comparable.")
+    st.markdown(
+        "Every model fails the same three cases — two where the retriever found one of two needed "
+        "articles, and one where the user said *don't cite sources* and every model obeyed. Those are "
+        "problems in the application, not in the models; the framework separates the two."
+        if len(_runs) == 3 else ""
+    )
+
+with st.expander("What each tab does"):
     st.markdown(
         """
 - **Golden case** — pick one of 26 hand-written test cases. *Run application* asks the news assistant
   (one API call) and shows the answer plus the four text chunks it was given. *Run evaluation* asks a
   second model, the **judge**, to score the answer on the metrics that apply to that case.
 - **Custom question** — the same, for any question you type.
-- **Last pipeline run** — the summary of the most recent full 26-case run (`python -m pipeline.run_evaluation`).
-- **Compare runs** — two complete runs side by side. Only runs with the **same judge, prompt and corpus**
+- **Last pipeline run** — the summary of the most recent full 26-case run.
+- **Compare runs** — two complete runs side by side. Only runs with the same judge, prompt and corpus
   can be compared; the tab refuses otherwise.
 
-Every score comes with the judge's written **reason**. Read it — the judge is sometimes wrong, and the reason is how you find out.
+Every score comes with the judge's written reason. Read it — the judge is sometimes wrong, and the reason is how you find out.
         """
     )
 ready_store()
@@ -225,8 +261,10 @@ tab_golden, tab_custom, tab_last, tab_compare = st.tabs(
 # ---- TAB 1: golden case -----------------------------------------------------
 with tab_golden:
     cases = golden_cases()
-    labels = [f"{c['id']} · {c['category']} · {c['question'][:75]}" for c in cases]
-    idx = st.selectbox("Select a test case", range(len(cases)), format_func=lambda i: labels[i])
+    labels = [f"{i}. {c['question'][:80]}  ({c['category'].replace('_', ' ')})" for i, c in enumerate(cases, 1)]
+    _wanted = st.query_params.get("case")
+    _default = next((i for i, c in enumerate(cases) if c["id"] == _wanted), 0)
+    idx = st.selectbox("Select a test case", range(len(cases)), index=_default, format_func=lambda i: labels[i])
     case = cases[idx]
 
     left, right = st.columns([3, 2])
@@ -240,11 +278,11 @@ with tab_golden:
         st.caption(BEHAVIOR_DESCRIPTIONS[case["expected_behavior"]])
         st.markdown(f"**Metrics for this case:** {', '.join(case['metrics'])}")
         if case["notes"]:
-            st.caption(f"📝 {case['notes']}")
+            st.caption(case["notes"])
 
     b1, b2 = st.columns([1, 1])
     run_key = (case["id"], choice)
-    if b1.button("▶ Run application", key="run_golden", width="stretch"):
+    if b1.button("Run application", key="run_golden", width="stretch"):
         with st.spinner(f"Retrieving and generating with {choice}…"):
             st.session_state["golden_result"] = (run_key, answer_question(
                 case["question"], provider=app_provider, model=app_model))
@@ -254,7 +292,7 @@ with tab_golden:
     if stored and stored[0] == run_key:
         result = stored[1]
         render_answer(result, case["source_ids"])
-        if b2.button("⚖ Run evaluation", key="eval_golden", width="stretch"):
+        if b2.button("Run evaluation", key="eval_golden", width="stretch"):
             st.session_state["golden_scores"] = run_metrics(
                 case["metrics"], case["question"], result,
                 case["expected_answer"], case["expected_behavior"],
@@ -281,7 +319,7 @@ with tab_custom:
 
     b1, b2 = st.columns([1, 1])
     run_key = (question, choice)
-    if b1.button("▶ Run application", key="run_custom", width="stretch", disabled=not question.strip()):
+    if b1.button("Run application", key="run_custom", width="stretch", disabled=not question.strip()):
         with st.spinner(f"Retrieving and generating with {choice}…"):
             st.session_state["custom_result"] = (run_key, answer_question(
                 question, provider=app_provider, model=app_model))
@@ -291,7 +329,7 @@ with tab_custom:
     if stored and stored[0] == run_key:
         result = stored[1]
         render_answer(result, [])
-        if b2.button("⚖ Run evaluation", key="eval_custom", width="stretch", disabled=not metric_names):
+        if b2.button("Run evaluation", key="eval_custom", width="stretch", disabled=not metric_names):
             st.session_state["custom_scores"] = run_metrics(
                 metric_names, question, result, expected.strip() or None, behavior,
             )

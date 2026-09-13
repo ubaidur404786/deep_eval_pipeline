@@ -30,3 +30,4 @@ results/*.log
 # any local tool/editor folder (hidden dirs), except CI config
 .*/
 !.github/
+!.streamlit/

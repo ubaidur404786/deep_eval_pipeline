@@ -11,6 +11,8 @@
      AI & Technology News Assistant
 ```
 
+![The demo: one row per model, one cell per test case](docs/demo.png)
+
 📘 **Want the step-by-step tutorial with every command and its output?** See [DETAIL.md](DETAIL.md).
 
 ---
