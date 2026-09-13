@@ -21,6 +21,15 @@ import argparse
 import json
 from functools import lru_cache
 
+# Chroma needs sqlite >= 3.35. Some hosts (Streamlit Community Cloud) ship an
+# older system sqlite; pysqlite3-binary provides a modern one on Linux only.
+try:
+    __import__("pysqlite3")
+    import sys as _sys
+    _sys.modules["sqlite3"] = _sys.modules.pop("pysqlite3")
+except ImportError:
+    pass
+
 import chromadb
 from sentence_transformers import SentenceTransformer
 

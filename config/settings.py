@@ -78,10 +78,10 @@ TOP_K = 4
 # 4. MODELS  (values live in .env so they can change without a code edit)
 # ---------------------------------------------------------------------------
 APP_PROVIDER = os.getenv("APP_PROVIDER", "gemini")
-APP_MODEL = os.getenv("APP_MODEL", "gemini-3.1-flash-lite")
+APP_MODEL = os.getenv("APP_MODEL", "gemini-3.5-flash-lite")
 
 JUDGE_PROVIDER = os.getenv("JUDGE_PROVIDER", "gemini")
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "gemini-3.5-flash-lite")
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "gemini-3.1-flash-lite")
 
 
 # ---------------------------------------------------------------------------

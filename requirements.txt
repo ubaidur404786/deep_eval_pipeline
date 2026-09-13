@@ -15,3 +15,6 @@ deepeval>=3.0
 
 # Phase 8 -- demo UI
 streamlit>=1.40
+
+# Hosting (Streamlit Community Cloud runs Linux with an old system sqlite)
+pysqlite3-binary; sys_platform == "linux"

@@ -29,6 +29,16 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st
 
+# On Streamlit Community Cloud there is no .env; keys live in st.secrets.
+# Copy top-level secrets into the environment so the rest of the code (which
+# uses os.getenv) works unchanged. Locally, .env is loaded by config.settings.
+try:
+    for _k, _v in st.secrets.items():
+        if isinstance(_v, str) and _k not in os.environ:
+            os.environ[_k] = _v
+except Exception:  # noqa: BLE001 -- no secrets file locally; that is fine
+    pass
+
 from app.rag_pipeline import answer_question
 from app.retriever import build_store
 from app.ui_theme import failure_map_html, hero, inject_css
