@@ -14,6 +14,7 @@ The outputs shown are real, copied from my terminal.
 1. [The idea in one paragraph](#1-the-idea-in-one-paragraph)
 2. [The models and what each one does](#2-the-models-and-what-each-one-does)
 3. [Setup](#3-setup)
+   - [3b. Watch the flow before running anything](#3b-watch-the-flow-before-running-anything)
 4. [Step 1 — Freeze the news corpus](#4-step-1--freeze-the-news-corpus)
 5. [Step 2 — Build the vector store](#5-step-2--build-the-vector-store)
 6. [Step 3 — Ask the assistant](#6-step-3--ask-the-assistant)
@@ -89,6 +90,24 @@ Groq key (https://console.groq.com/keys) is only needed for the model comparison
 
 > If your console prints `�` instead of curly quotes, run
 > `$env:PYTHONIOENCODING="utf-8"` once. The data itself is fine.
+
+## 3b. Watch the flow before running anything
+
+If you learn best by watching data move, there is a walkthrough script that
+runs the real functions in the real order for one test case and prints what
+goes in and out at every step. By default it makes **no API calls** and
+**writes nothing** — the model is replaced by a stand-in — so it is safe to run
+as often as you like:
+
+```powershell
+python debug_walkthrough.py                        # offline, case_12
+python debug_walkthrough.py --case case_16 --pause # a different case, Enter between steps
+python debug_walkthrough.py --case case_16 --live-app   # one real application call
+```
+
+Every line marked `# <-- breakpoint here` is where a new part of the system is
+entered. Set breakpoints there in VS Code, press F5, and use *Step Into* to walk
+into `loader.py`, `retriever.py`, `generator.py`, and the metric files.
 
 ## 4. Step 1 — Freeze the news corpus
 
