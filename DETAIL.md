@@ -448,104 +448,85 @@ corpus timestamp — so you always know exactly what produced the numbers.
 
 ## 10. Step 7 — Read the results
 
-My first clean full run, 26 cases, 17 minutes, zero errors:
+Three complete runs, three application models, one judge. All in `results/`:
 
 ```text
-per metric
-  metric                   n   pass    avg    min
-  correctness             18   100%   0.99   0.90
-  faithfulness            21    90%   0.93   0.00
-  relevance               13    85%   0.94   0.50
-  instruction_following   26    85%   0.83   0.00
-
-per category (case passes only if ALL its metrics pass)
-  factual                6/8       hallucination_trap     4/4
-  multi_hop              2/3       out_of_scope           2/2
-  missing_information    3/3       instruction_following  2/2
-  contradiction          0/1       relevance              1/1
-  ambiguous              0/2
-
-failed cases (6)
-  case_01  [factual]        faithfulness=0.0
-  case_04  [factual]        faithfulness=0.5, relevance=0.5
-  case_09  [multi_hop]      instruction_following=0.0
-  case_19  [contradiction]  relevance=0.667, instruction_following=0.0
-  case_20  [ambiguous]      instruction_following=0.0
-  case_21  [ambiguous]      instruction_following=0.0
+run_gemini_gemini-3.5-flash-lite_20260913_104029.json   app gemini-3.5-flash-lite   (Google)
+run_groq_openai_gpt-oss-120b_20260913_102919.json       app openai/gpt-oss-120b     (Groq)
+run_groq_openai_gpt-oss-20b_20260912_170133.json        app openai/gpt-oss-20b      (Groq)
+judge for all three: gemini-3.1-flash-lite   prompt hash 8caaebbe2646   corpus 2026-09-11
 ```
-
-Numbers alone would tell you "six failures". The reasons tell you what *kind*:
-
-**A real mistake by the assistant** — `case_19`. The article says "93% of audio
-content" in the headline and "99% of new content" in the body. The assistant
-reported 99% only. The judge wrote:
-
-> "The actual output only reports a single figure (99%) and fails to mention the
-> conflict or present the second version from the sources."
-
-**A retrieval miss** — `case_09` and `case_20`. Both need two articles; the
-retriever found one (`expected_sources_found: 1/2` in the results file, no LLM
-involved). The assistant could not have answered well. That is an application
-problem, not a model problem, and the fix is in the retriever.
-
-**A judge mistake** — `case_01`. The assistant said the lawyer was fined "for
-including AI-fabricated witnesses in a legal brief". The source says "in an
-appeal of his murder conviction". The judge called that a contradiction and
-gave 0.0. It is not one. The score is a claim; the reason is the evidence.
-When they disagree, fix the rubric or try a stronger judge — do not trust the number.
-
-One more thing I saw across two runs: the same failure (assistant dropped the
-`Sources:` line) got 0.5 the first time and 0.7 the second. Judges are not
-perfectly consistent even at temperature 0. So I moved that particular check
-out of the judge into a plain string test. Cheap and exact beats expensive and
-wobbly whenever exact is possible.
-
-### A second run, a second model
-
-Same 26 cases, application model `openai/gpt-oss-120b` (served free by Groq),
-judge `gemini-3.1-flash-lite`, 15 minutes:
 
 ```text
-per metric
-  metric                   n   pass    avg
-  correctness             18    94%   0.96
-  faithfulness            21    95%   0.98
-  relevance               13    92%   0.97
-  instruction_following   26    77%   0.80
+PER METRIC  (pass rate / average score)
+metric                  gemini-3.5-flash-lite    gpt-oss-120b     gpt-oss-20b
+correctness                   94% / 0.98          100% / 1.00     100% / 1.00
+faithfulness                  90% / 0.93           95% / 0.97      90% / 0.95
+relevance                    100% / 1.00          100% / 0.99      92% / 0.95
+instruction_following         85% / 0.88           81% / 0.84      81% / 0.84
 
-failed cases (7)
-  case_02  [factual]            relevance=0.667              judge error ("Thursday is irrelevant" — the question asked when)
-  case_09  [multi_hop]          instruction_following=0.0    retrieval miss (1/2) → model abstained instead of answering with what it had
-  case_16  [hallucination_trap] instruction_following=0.0, correctness=0.3   REAL: went along with the false premise
-  case_19  [contradiction]      faithfulness=0.5, instruction_following=0.0  gave both figures but did not flag the conflict
-  case_20  [ambiguous]          instruction_following=0.3    retrieval miss (1/2)
-  case_21  [ambiguous]          instruction_following=0.3    debatable golden case
-  case_25  [instruction_following] instruction_following=0.5  REAL: obeyed "answer without listing sources"
+PER CATEGORY  (cases passed)
+factual                        7/8                  8/8             6/8
+multi_hop                      1/3                  2/3             2/3
+missing_information            3/3                  3/3             3/3
+hallucination_trap             4/4                  4/4             4/4
+contradiction                  0/1                  0/1             0/1
+ambiguous                      1/2                  0/2             0/2
+out_of_scope                   2/2                  2/2             2/2
+instruction_following          1/2                  1/2             1/2
+relevance                      1/1                  1/1             1/1
+
+PER CASE  (only cases where at least one model failed; src = expected articles retrieved)
+case     category               src   gemini-3.5-lite          gpt-oss-120b            gpt-oss-20b
+case_02  factual                1/1   -                        -                       relevance=0.5
+case_03  factual                1/1   faithfulness=0.667       -                       -
+case_04  factual                1/1   -                        -                       faithfulness=0.5
+case_09  multi_hop              1/2   instr=0.0                instr=0.0               instr=0.0
+case_11  multi_hop              1/1   faithfulness=0.0         -                       -
+case_19  contradiction          1/1   correctness=0.6,instr=0  faith=0.667,instr=0     faith=0.5,instr=0.3
+case_20  ambiguous              1/2   instr=0.3                instr=0.3               instr=0.3
+case_21  ambiguous              2/2   -                        instr=0.3               instr=0.3
+case_25  instruction_following  1/1   instr=0.5                instr=0.5               instr=0.5
 ```
 
-The headline: the **120B model hallucinated where the small one did not**.
-Asked "Why did Anthropic's alignment lead resign this week?", it answered
-*"Anthropic's alignment lead resigned in protest, co-signing a public
-warning…"* — the source says a researcher resigned and the alignment lead only
-co-signed. `gemini-3.1-flash-lite` corrected the premise. Bigger is not
-automatically safer, and this is the kind of thing a fixed test set catches
-that casual testing never would.
+### How to read this
 
-**Important:** this run and the first one used different judges (the first
-judge's daily cap was exhausted). So the two tables are *not* a head-to-head
-comparison, and `compare.py` refuses to put them side by side. That refusal is
-the framework doing its job.
+**Start with the rows where everyone fails.** `case_09` and `case_20` have
+`src = 1/2`: the retriever found only one of the two articles the answer needs.
+Every model fails them the same way. That is an *application* problem - no
+model choice fixes it - and the free `expected_sources_found` check told us so
+before any judge ran. `case_25` is the same idea from the other side: the user
+says "answer without listing sources", and **all three models obey**, dropping
+the citation the system prompt requires. That is a *prompt* problem (rule 9 is
+not strong enough), not a model difference.
 
-This run also started out with **15** failures, not 7. Reading the reasons
-showed that eight of them were caused by the framework, not the model — see
-section 14. After fixing the framework, only the affected rows were re-scored
-with `pipeline/rescore.py` (the answers were unchanged; only the scoring rules
-were). Every re-scored row is marked `"rescored": true` in the results file.
+**Then the rows where models differ.** These are the actual model signal:
+
+- `case_19` (93% vs 99% in one article): the small Gemini silently picked one
+  figure; both gpt-oss models reported both. None said "these conflict". Size helps.
+- `case_11` (source text ends mid-word at "...Spotify, Nvidia, and Kla"): the
+  small Gemini listed "Kla" as a partner company. The judge's reason: *"claims a
+  partnership with Kla, which is not supported"*. A truncated fragment reported
+  as a fact.
+- `case_03`: the small Gemini added 558 main + 60 variant trajectories and
+  reported "618" - an invented total. Same embellishment habit.
+- `case_21`: the only row the small model wins. Judgement call on a debatable case.
+- `case_02`, `case_04` (gpt-oss-20b): read the reasons - "Thursday is
+  irrelevant" to a question that asked *when*; "holding sign-ups" vs "paused".
+  These are the judge quibbling, not the model failing.
+
+**Then the row that changed between days.** `case_16` asks why Anthropic's
+alignment lead resigned - a false premise. Today all three models handled it.
+Yesterday, in an earlier run of the same `gpt-oss-120b` at the same temperature
+0, the answer was *"Anthropic's alignment lead resigned in protest..."*. That run
+is kept in `results/archive/`. The lesson is not "the 120B hallucinates"; it is
+**one run is not enough**. Two runs of the same configuration is the minimum
+before believing a difference, and the daily free quota allows exactly that.
 
 To dig into any case:
 
 ```powershell
-python -c "import json; r=json.load(open('results/latest_results.json',encoding='utf-8')); c=[c for c in r['cases'] if c['id']=='case_19'][0]; print(c['answer']); [print(m['metric'], m['score'], m['reason']) for m in c['metrics']]"
+python -c "import json; r=json.load(open('results/run_groq_openai_gpt-oss-20b_20260912_170133.json',encoding='utf-8')); c=[c for c in r['cases'] if c['id']=='case_19'][0]; print(c['answer']); [print(m['metric'], m['score'], m['reason']) for m in c['metrics']]"
 ```
 
 ## 11. Step 8 — The Streamlit demo
@@ -615,17 +596,20 @@ case      category                       A                        B   note
 case_02   factual                relev=None                       ok   <- B better
 ```
 
-**Status.** Two complete runs exist (`gemini-3.1-flash-lite` and
-`gpt-oss-120b`) but with different judges, so they cannot be compared directly.
-The planned same-judge comparison is `gpt-oss-120b` vs `gpt-oss-20b`, both
-judged by `gemini-3.1-flash-lite` — two runs of ~200 judge calls each, which
-fit inside one day's free quota. Results will be added here when they are in.
+**Status: done.** Three same-judge runs are in `results/`, and the demo's
+Compare tab shows any pair. The full per-case table and its reading are in
+section 10.
 
-What I expect (written down *before* seeing the numbers): the 20B model should
-fail more instruction-following cases than the 120B, while `case_09` and
-`case_20` should fail for **both**, because those are retrieval failures and no
-application model can fix them. Interesting to watch: whether the 20B also
-falls for the `case_16` false premise.
+What I predicted before seeing the numbers, and what happened:
+
+| Prediction | Outcome |
+|---|---|
+| `case_09` and `case_20` fail for every model (retrieval) | Yes. All three, identically. |
+| The 20B fails more instruction-following cases than the 120B | No. Same count (81% each). Where they differ is faithfulness and relevance, not instructions. |
+| The 120B keeps the `Sources:` line on `case_25` | No. **Nobody** kept it. This turned out to be a prompt weakness, not a model property. |
+| The 120B handles `case_19` | Partly. It reported both figures but did not flag the conflict. |
+
+Two of four predictions wrong. That is why you write them down first.
 
 Before trusting any difference, run the *same* configuration twice and look at
 how much the numbers move on their own. That is your noise floor. Only
@@ -638,8 +622,8 @@ console.
 
 | Provider / model | Per minute | Per day | Notes |
 |---|---|---|---|
-| Gemini `gemini-3.1-flash-lite` | 15 requests | 500 | app model in run 1; judge for the Groq runs |
-| Gemini `gemini-3.5-flash-lite` | 15 requests | **500** (measured) | judge in run 1 ≈ two full runs/day |
+| Gemini `gemini-3.1-flash-lite` | 15 requests | 500 | the judge for all three main runs |
+| Gemini `gemini-3.5-flash-lite` | 15 requests | **500** (measured) | app model in the Gemini run; judge in the archived first run |
 | Gemini `gemini-3.6-flash` | 5 requests | **20** | subsets only |
 | Gemini `gemini-2.5-*` | — | — | closed to new keys |
 | Groq `openai/gpt-oss-120b` | 8,000 **tokens** | 1,000 requests | good app model; too slow as judge |
@@ -680,8 +664,14 @@ separate buckets. A 26-case run makes about 250 judge calls.
 - **Re-score, don't re-run.** When a scoring rule changes, the saved answers
   are still valid. `pipeline/rescore.py` re-runs only the metrics, for ~15
   judge calls instead of 250.
-- **The judge is wrong sometimes.** Two of six failures in the first run, and
-  two of seven in the second, were the judge's. Always read the reason.
+- **The judge is wrong sometimes.** In every run, one or two failures were the
+  judge's, not the model's. Always read the reason.
+- **A failure that does not reproduce is a measurement, not a verdict.** The
+  120B's false-premise hallucination on `case_16` happened once in two runs.
+  Run twice before concluding anything about a model.
+- **When every model fails the same case, look at the application.** Rows
+  09/20 (retrieval) and 25 (prompt rule too weak) are the framework pointing at
+  *my* code, not at the models. That is the most useful thing it did.
 - **Most failures were retrieval failures.** A free string comparison
   (`expected_sources_found`) explained more than any judge call. Evaluate the
   whole application, not just the model.

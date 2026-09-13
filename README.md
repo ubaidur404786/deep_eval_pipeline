@@ -121,55 +121,39 @@ A full diagram is in [`docs/architecture.pdf`](docs/architecture.pdf).
 
 ## What it found so far
 
-Two complete 26-case runs exist, with two different application models.
-
-**Run 1 — `gemini-3.1-flash-lite`** (judge `gemini-3.5-flash-lite`):
-
-```text
-metric                  pass    avg
-correctness             100%   0.99
-faithfulness             90%   0.93
-relevance                85%   0.94
-instruction_following    85%   0.83        6 of 26 cases failed
-```
-
-**Run 2 — `openai/gpt-oss-120b` on Groq** (judge `gemini-3.1-flash-lite`):
+Three application models, the **same** 26 cases, the **same** judge
+(`gemini-3.1-flash-lite`), the same prompt and corpus. Only the model changes.
 
 ```text
-metric                  pass    avg
-correctness              94%   0.96
-faithfulness             95%   0.98
-relevance                92%   0.97
-instruction_following    77%   0.80        7 of 26 cases failed
+                        gemini-3.5-flash-lite    gpt-oss-120b (Groq)    gpt-oss-20b (Groq)
+                        pass    avg              pass    avg            pass    avg
+correctness              94%   0.98             100%   1.00           100%   1.00
+faithfulness             90%   0.93              95%   0.97            90%   0.95
+relevance               100%   1.00             100%   0.99            92%   0.95
+instruction_following    85%   0.88              81%   0.84            81%   0.84
+
+cases failed              6 of 26                 5 of 26               7 of 26
 ```
 
-The two runs used different judges (free-tier daily caps forced the switch), so
-the numbers above are **not** a head-to-head comparison — the framework refuses
-to compare them for exactly that reason. A proper same-judge comparison is the
-next step (see Status).
+The numbers are close. The **per-case** view is where the information is:
 
-What the failures are, in both runs, falls into three kinds — and telling them
-apart is the whole point of the framework:
+| Case | What it tests | gemini-lite | gpt-oss-120b | gpt-oss-20b | What it means |
+|---|---|---|---|---|---|
+| 09, 20 | two articles needed | ❌ | ❌ | ❌ | Retriever found 1 of 2. **All three fail identically** — a retrieval problem, and no model choice fixes it. |
+| 25 | user says "don't list sources" | ❌ | ❌ | ❌ | **All three obeyed the user** and dropped the required citation. Not a model difference — a **prompt weakness**. Next experiment: strengthen the rule, re-run, watch this row. |
+| 19 | article says 93% *and* 99% | ❌ picked 99% | ⚠️ gave both | ⚠️ gave both | Bigger models report both figures; none says the figures conflict. |
+| 11 | source text is cut off at "…and Kla" | ❌ listed "Kla" as a company | ✅ | ✅ | The small model repeated a truncated fragment as a fact. |
+| 03 | "how many trajectories?" (558) | ❌ added 558+60 = "618" | ✅ | ✅ | Small-model embellishment. |
+| 21 | ambiguous "new AI music model" | ✅ | ❌ | ❌ | The only case the small model wins. |
+| 16 | false premise ("alignment lead resigned") | ✅ | ✅ | ✅ | All pass **today**. In yesterday's run gpt-oss-120b went along with the premise. Same model, temperature 0, different day — **one run is not enough** to call a model safe. |
 
-- **Real mistakes by the assistant.** One article gives two figures (93% and
-  99%); the small model quietly picked one, the large model gave both but did
-  not flag the conflict. And the *larger* model fell for a false premise —
-  asked why Anthropic's alignment lead resigned, it wrote "resigned in protest",
-  when the source says a researcher resigned and the alignment lead only
-  co-signed. The small model corrected the premise. Bigger is not automatically safer.
-- **Retrieval misses.** Two questions need two articles each; the retriever
-  finds only one. Both models fail those cases the same way, because no model
-  can answer from text it never saw. The pipeline reports this separately,
-  before any judge is involved.
-- **Judge mistakes.** The judge scored a correct answer 0.0 on faithfulness
-  because the wording differed from the source, and called "Thursday"
-  irrelevant to a question that asked *when*. Reading the reason makes these obvious.
+Three lessons this table teaches better than any average could:
 
-Reading the second run's reasons also exposed that half of its original
-failures were caused by the *framework* — the judge was grading the required
-`Sources:` line as "irrelevant meta-information" and reading a cited article
-title as a factual claim. Fixed: faithfulness and relevance now see only the
-answer body. Details in [DETAIL.md](DETAIL.md#14-things-that-went-wrong-and-what-i-learned).
+1. **Separate the application from the model.** Rows 09/20/25 fail for every model — the fix is in the retriever and the prompt, not in model choice. A single "quality score" would hide that completely.
+2. **Read the reasons.** Two of the small model's failures are genuine (a truncated fragment reported as a company; an invented total). One of the 20B's failures ("holding sign-ups" vs "paused") is the judge quibbling over synonyms.
+3. **Measure before you conclude.** The 120B's hallucination on case 16 appeared in one run and not the next. Free-tier quotas allow ~2 full runs a day — enough to run twice before believing a difference.
+
+Everything above comes from `results/run_*.json`; the demo's **Compare runs** tab shows any pair side by side.
 
 ## Try it
 
@@ -204,9 +188,9 @@ docs/            architecture diagram, evaluation flow explained
 
 ## Status
 
-- ✅ Application, framework, 26 golden cases, pipeline, Streamlit demo (4 tabs), docs
-- ✅ Two complete evaluation runs with real, honest results — including failures on both sides
-- ⏳ Same-judge comparison: `gpt-oss-120b` vs `gpt-oss-20b` (both judged by `gemini-3.1-flash-lite`) — runs queued for the next daily quota window
-- ⏳ Next ideas: completeness metric, safety metric, a reranker experiment, noise-floor measurement
+- ✅ Application, framework, 26 golden cases, pipeline, Streamlit demo (4 tabs), docs, offline walkthrough script
+- ✅ Three complete same-judge runs across two vendors — with real failures on every side, classified
+- ⏳ Next experiments the results point at: strengthen prompt rule 9 and re-run (case 25); improve retrieval and re-run (cases 09, 20); run each model twice to measure the noise floor
+- ⏳ Later: completeness metric, safety metric
 
 Built as a learning project. If something is unclear, that is a bug in the docs — please open an issue.
