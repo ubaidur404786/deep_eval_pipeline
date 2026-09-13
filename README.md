@@ -11,7 +11,9 @@
      AI & Technology News Assistant
 ```
 
-![The demo: one row per model, one cell per test case](docs/demo.png)
+**▶ Live demo: https://rag-eval-framework.streamlit.app** — click a cell in the map to open that test case, run the assistant, run the judge.
+
+[![The demo: one row per model, one cell per test case](docs/demo.png)](https://rag-eval-framework.streamlit.app)
 
 📘 **Want the step-by-step tutorial with every command and its output?** See [DETAIL.md](DETAIL.md).
 
@@ -158,6 +160,9 @@ Three lessons this table teaches better than any average could:
 Everything above comes from `results/run_*.json`; the demo's **Compare runs** tab shows any pair side by side.
 
 ## Try it
+
+The quickest way is the [live demo](https://rag-eval-framework.streamlit.app). It may take a
+minute to wake up if nobody has used it recently. To run it yourself:
 
 ```powershell
 git clone https://github.com/ubaidur404786/deep_eval_pipeline.git

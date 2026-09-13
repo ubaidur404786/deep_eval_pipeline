@@ -532,6 +532,8 @@ python -c "import json; r=json.load(open('results/run_groq_openai_gpt-oss-20b_20
 ## 11. Step 8 — The Streamlit demo
 
 **File:** `app/streamlit_app.py`
+**Hosted:** https://rag-eval-framework.streamlit.app (Streamlit Community Cloud, free;
+keys live in the app's Secrets, never in the repo)
 
 ```powershell
 streamlit run app/streamlit_app.py
